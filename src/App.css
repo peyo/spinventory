@@ -1,0 +1,41 @@
+.date-picker {
+    width: 100%; /* Ensure full width */
+    background-color: rgba(118, 118, 128, 0.12);
+    border-radius: 12px; /* Match Material-UI border radius */
+    margin-bottom: 16px;
+    border: 1px solid #b7b7b7; /* Default border color */
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
+    border-radius: 45px; /* Match border radius */
+}
+
+.react-datepicker__input-container {
+    width: 100%; /* Ensure full width for the input container */
+    display: flex; /* Use flexbox for centering */
+    justify-content: center; /* Center the input */
+}
+
+.react-datepicker__input-container input {
+    border: none; /* Remove default border */
+    outline: none; /* Remove outline on focus */
+    background: transparent; /* Make background transparent */
+    padding: 10px; /* Add padding */
+    height: 56px; /* Match height */
+    width: 100%; /* Ensure full width for the input */
+    text-align: center; /* Center the text */
+    font-size: 16px; /* Adjust font size to a more appropriate value */
+    line-height: 56px; /* Center vertically */
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
+}
+
+.react-datepicker__header {
+    color: white; /* Header text color */
+}
+
+.react-datepicker__day--selected {
+    background-color: #007AFF; /* Selected day background color */
+    color: white; /* Selected day text color */
+}
+
+.react-datepicker__day:hover {
+    background-color: rgba(0, 122, 255, 0.5); /* Hover effect */
+}
