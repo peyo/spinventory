@@ -7,13 +7,14 @@ import { ref, remove } from "firebase/database";
 import { database } from "../config/firebase"; // Adjust the path as necessary
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Link } from "react-router-dom"; // Import Link for navigation
+import { Link, useNavigate } from "react-router-dom"; // Import Link and useNavigate for navigation
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
 
 const Records = () => {
     const [tallies, setTallies] = useState([]);
     const [loading, setLoading] = useState(true);
     const user = auth.currentUser; // Get the currently logged-in user
+    const navigate = useNavigate(); // Initialize useNavigate
 
     useEffect(() => {
         if (user) {
@@ -54,9 +55,8 @@ const Records = () => {
             });
     };
 
-    const handleEdit = (id) => {
-        // Implement edit functionality (e.g., navigate to edit page)
-        console.log("Edit tally with ID:", id);
+    const handleEdit = (tally) => {
+        navigate('/tally', { state: { tally } }); // Ensure tally includes date and condition
     };
 
     return (
@@ -102,7 +102,7 @@ const Records = () => {
                                 secondary={`Created At: ${new Date(tally.createdAt * 1000).toLocaleString()}`}
                             />
                             <div style={{ display: 'flex', gap: '8px' }}> {/* Flexbox for side-by-side buttons */}
-                                <IconButton onClick={() => handleEdit(tally.id)}>
+                                <IconButton onClick={() => handleEdit(tally)}>
                                     <EditIcon />
                                 </IconButton>
                                 <IconButton onClick={() => handleDelete(tally.id)}>
