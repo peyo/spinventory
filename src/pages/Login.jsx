@@ -1,23 +1,47 @@
 import { useState } from "react";
-import { TextField, Container, Typography, IconButton, Link } from "@mui/material";
+import { TextField, Container, Typography, IconButton, Link, Snackbar } from "@mui/material";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../config/firebase";
+import { auth } from "../config/firebase"; // Ensure this path is correct
 import { useNavigate } from "react-router-dom";
+import API_URL from "../config/config"; // Import the API URL
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async () => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate("/tally"); // Redirect to tallying page after login
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user; // Get the user object
+
+      // Fetch user role from the server
+      const userRole = await fetchUserRole(user.uid); // Fetch the user's role
+
+      // Redirect based on user role
+      if (userRole === "tallier") {
+        navigate("/tally"); // Redirect to Tally page
+      } else if (userRole === "accountant") {
+        navigate("/accounting"); // Redirect to Accounting page
+      } else {
+        setSnackbarMessage("Role not recognized."); // Handle unexpected roles
+        setSnackbarOpen(true); // Open Snackbar
+      }
     } catch (error) {
-      setError(error.message);
+      setSnackbarMessage(error.message); // Set error message for display
+      setSnackbarOpen(true); // Open Snackbar
     }
+  };
+
+  // Handle Snackbar close
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
   };
 
   return (
@@ -35,9 +59,6 @@ const Login = () => {
       <Typography variant="h5" sx={{ marginBottom: 4, fontWeight: "bold", color: "#000" }}>
         Spinventory
       </Typography>
-
-      {/* Display Errors */}
-      {error && <Typography color="error">{error}</Typography>}
 
       {/* Email Field */}
       <TextField 
@@ -96,8 +117,30 @@ const Login = () => {
           Sign Up
         </Link>
       </Typography>
+
+      {/* Snackbar for error messages */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        message={snackbarMessage}
+      />
     </Container>
   );
+};
+
+// Function to fetch user role from the server
+const fetchUserRole = async (userId) => {
+  const response = await fetch(`${API_URL}/api/user-role/${userId}`); // Call the server endpoint
+
+  // Check if the response is OK (status code 200)
+  if (!response.ok) {
+    const errorText = await response.text(); // Get the error response as text
+    throw new Error(`Error fetching user role: ${errorText}`); // Throw an error with the response text
+  }
+
+  const data = await response.json(); // Parse the response as JSON
+  return data.role; // Return the user's role
 };
 
 export default Login;

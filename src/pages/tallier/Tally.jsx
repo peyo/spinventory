@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Container, TextField, Typography, Button, IconButton, Select, MenuItem } from "@mui/material";
+import { Container, TextField, Typography, Button, IconButton, Select, MenuItem, Snackbar } from "@mui/material";
 import DatePicker from "react-datepicker"; // Import React Datepicker
 import "react-datepicker/dist/react-datepicker.css"; // Import CSS for styling
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
@@ -37,6 +37,8 @@ const Tally = () => {
   const [isEditing, setIsEditing] = useState(!!tallyData.id); // Set to true if editing
 
   const [user, setUser] = useState(null); // State to hold the user
+  const [snackbarMessage, setSnackbarMessage] = useState(""); // Snackbar message state
+  const [snackbarOpen, setSnackbarOpen] = useState(false); // Snackbar open state
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -44,7 +46,8 @@ const Tally = () => {
       await signOut(auth);
       navigate("/");
     } catch (error) {
-      console.error("Logout failed:", error.message);
+      setSnackbarMessage("Logout failed: " + error.message);
+      setSnackbarOpen(true);
     }
   };
 
@@ -62,7 +65,11 @@ const Tally = () => {
   const handleManualPriceAdd = () => {
     const priceValue = parseFloat(manualPrice);
 
-    if (isNaN(priceValue) || priceValue <= 0) return; // Ensure the price is a valid positive number
+    if (isNaN(priceValue) || priceValue <= 0) {
+      setSnackbarMessage("Please enter a valid positive number for the manual price.");
+      setSnackbarOpen(true);
+      return; // Ensure the price is a valid positive number
+    }
     const sanitizedPrice = Math.round(priceValue * 100); // Sanitize for key access (as an integer)
     
     // Add the manual price to tallies
@@ -97,7 +104,8 @@ const Tally = () => {
       setManualPrices((prev) => prev.filter((p) => p !== price)); // Remove from manual prices
     } catch (error) {
       console.error("Error deleting manual price:", error);
-      alert("Failed to delete manual price.");
+      setSnackbarMessage("Failed to delete manual price: " + error.message);
+      setSnackbarOpen(true);
     }
   };
 
@@ -106,55 +114,60 @@ const Tally = () => {
 
     // Check if the bin field is empty
     if (!bin) {
-        alert("Bin # is required."); // Display an alert if bin is empty
-        return; // Prevent form submission
+      setSnackbarMessage("Bin # is required."); // Display an alert if bin is empty
+      setSnackbarOpen(true);
+      return; // Prevent form submission
     }
 
     // Convert the selected date to a Unix timestamp (in seconds)
-    const dateKey = Math.floor(selectedDate.getTime() / 1000); // Convert to seconds
+    const dateKey = Math.floor(new Date(selectedDate.setUTCHours(12, 0, 0, 0)).getTime() / 1000); // Convert to Unix timestamp
 
     if (!user) {
-        console.error("No user is currently logged in.");
-        return; // Prevent submission if no user is logged in
+      console.error("No user is currently logged in.");
+      setSnackbarMessage("No user is currently logged in.");
+      setSnackbarOpen(true);
+      return; // Prevent submission if no user is logged in
     }
 
     const dataToSubmit = {
-        condition,
-        counter: counter || null,
-        tallier: tallier || null,
-        tallies,
-        createdAt: dateKey, // Use dateKey for createdAt
-        submittedBy: user.email,
+      condition,
+      counter: counter || null,
+      tallier: tallier || null,
+      tallies,
+      createdAt: dateKey, // Use dateKey for createdAt
+      submittedBy: user.email,
     };
 
     try {
-        const response = await fetch(`http://localhost:3000/api/tally/bins/${bin}/tallies/${dateKey}`, { // Use date as key
-            method: 'POST', // Use POST to add or update the entry
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(dataToSubmit), // Send the data including the date
-        });
+      const response = await fetch(`http://localhost:3000/api/tally/bins/${bin}/tallies/${dateKey}`, { // Use date as key
+        method: 'POST', // Use POST to add or update the entry
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dataToSubmit), // Send the data including the date
+      });
 
-        if (!response.ok) {
-            const errorBody = await response.text(); // Get the error response body
-            console.error("Error response:", errorBody); // Log the error response
-            throw new Error('Network response was not ok');
-        }
+      if (!response.ok) {
+        const errorBody = await response.text(); // Get the error response body
+        console.error("Error response:", errorBody); // Log the error response
+        throw new Error('Network response was not ok');
+      }
 
-        alert("Data submitted successfully!");
-        setBin(""); // Clear the bin input
-        setCondition("white"); // Reset condition to default
-        setCounter(""); // Clear the counter input
-        setTallier(""); // Clear the tallier input
-        setTallies({}); // Clear the tallies object
-        setManualPrices([]); // Clear manual prices
-        setSelectedDate(new Date()); // Reset the date to the current date
-        setIsEditing(false); // Set to false after submitting
+      setSnackbarMessage("Data submitted successfully!");
+      setSnackbarOpen(true);
+      setBin(""); // Clear the bin input
+      setCondition("white"); // Reset condition to default
+      setCounter(""); // Clear the counter input
+      setTallier(""); // Clear the tallier input
+      setTallies({}); // Clear the tallies object
+      setManualPrices([]); // Clear manual prices
+      setSelectedDate(new Date()); // Reset the date to the current date
+      setIsEditing(false); // Set to false after submitting
 
     } catch (error) {
-        console.error("Error submitting data:", error);
-        alert("Failed to submit data.");
+      console.error("Error submitting data:", error);
+      setSnackbarMessage("Failed to submit data: " + error.message);
+      setSnackbarOpen(true);
     }
   };
 
@@ -165,32 +178,33 @@ const Tally = () => {
   const handleEdit = async () => {
     const dateKey = Math.floor(selectedDate.getTime() / 1000); // Convert selected date to Unix timestamp
     const updatedTally = {
-        binId: bin,
-        condition,
-        counter,
-        tallier,
-        tallies,
-        createdAt: dateKey, // Use the dateKey for createdAt
+      binId: bin,
+      condition,
+      counter,
+      tallier,
+      tallies,
+      createdAt: dateKey, // Use the dateKey for createdAt
     };
 
     try {
-        const response = await fetch(`http://localhost:3000/api/tally/${dateKey}/${condition}`, { // Use date and condition
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updatedTally),
-        });
+      const response = await fetch(`http://localhost:3000/api/tally/${dateKey}/${condition}`, { // Use date and condition
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedTally),
+      });
 
-        if (!response.ok) {
-            throw new Error('Failed to save the tally');
-        }
+      if (!response.ok) {
+        throw new Error('Failed to save the tally');
+      }
 
-        setIsEditing(false); // Set to false after saving
-        navigate("/records");
+      setIsEditing(false); // Set to false after saving
+      navigate("/records");
     } catch (error) {
-        console.error("Error saving tally:", error);
-        alert("Failed to save tally.");
+      console.error("Error saving tally:", error);
+      setSnackbarMessage("Failed to save tally: " + error.message);
+      setSnackbarOpen(true);
     }
   };
 
@@ -250,12 +264,22 @@ const Tally = () => {
           setManualPrices(fetchedManualPrices); // Set manual prices for display
         } catch (error) {
           console.error("Error fetching tally data:", error);
+          setSnackbarMessage("Error fetching tally data: " + error.message);
+          setSnackbarOpen(true);
         }
       };
 
       fetchTallyData();
     }
   }, [isEditing, tallyData]);
+
+  // Snackbar close handler
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
 
   return (
     <Container sx={{ paddingTop: 4, textAlign: "center" }}>
@@ -585,6 +609,14 @@ const Tally = () => {
           <Button onClick={handleCancel}>Cancel</Button>
         )}
       </form>
+
+      {/* Snackbar for error messages */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        message={snackbarMessage}
+      />
     </Container>
   );
 };

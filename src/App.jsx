@@ -5,7 +5,7 @@ import SignUp from "./pages/SignUp";
 import Tally from "./pages/tallier/Tally";
 import Records from "./pages/tallier/Records";
 import UserManagement from "./pages/manager/UserManagement";
-// import BinCount from './pages/admin/BinCount';
+import BinCount from './pages/manager/BinCount';
 import './styles/App.css';
 
 function Main() {
@@ -18,7 +18,7 @@ function Main() {
         <Route path="/tally" element={<Tally />} />
         <Route path="/records" element={<Records />} />
         <Route path="/user-management" element={<UserManagement />} />
-        {/* <Route path="/bin-count" element={<BinCount />} /> */}
+        <Route path="/bin-count" element={<BinCount />} />
       </Routes>
     </Router>
   );

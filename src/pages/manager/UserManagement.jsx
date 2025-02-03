@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button, Typography, Container, IconButton, Box, Select, MenuItem, FormControl } from "@mui/material";
+import { Button, Typography, Container, IconButton, Box, Select, MenuItem, FormControl, Snackbar } from "@mui/material";
 import UserDeleteModal from "../../components/Modals/UserDeleteModal";
-import { fetchUsers, deleteUser, updateUserRole } from "../../utils/userApi"; // Import your API functions
+import { fetchUsers, deleteUser, updateUserRole } from "../../utils/managerApi"; // Import your API functions
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
 import DeleteIcon from "@mui/icons-material/Delete"; // Import trash can icon
 import LogoutIcon from "@mui/icons-material/Logout"; // Import logout icon
@@ -11,7 +11,8 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [error, setError] = useState(null); // State for error handling
+  const [snackbarMessage, setSnackbarMessage] = useState(""); // State for Snackbar message
+  const [snackbarOpen, setSnackbarOpen] = useState(false); // State for Snackbar open/close
   const navigate = useNavigate(); // Initialize navigate
 
   useEffect(() => {
@@ -30,7 +31,8 @@ const UserManagement = () => {
         }
       } catch (error) {
         console.error("Error fetching users:", error);
-        setError("Failed to fetch users."); // Set error message
+        setSnackbarMessage("Failed to fetch users."); // Set error message
+        setSnackbarOpen(true); // Open Snackbar
       }
     };
     getUsers();
@@ -48,7 +50,8 @@ const UserManagement = () => {
       setOpenDeleteModal(false);
     } catch (error) {
       console.error("Error deleting user:", error);
-      setError("Failed to delete user."); // Set error message
+      setSnackbarMessage("Failed to delete user."); // Set error message
+      setSnackbarOpen(true); // Open Snackbar
     }
   };
 
@@ -69,23 +72,34 @@ const UserManagement = () => {
       await Promise.all(users.map(user => 
         updateUserRole(user.id, { role: user.role }) // Save the updated role
       ));
-      setError(null); // Clear any previous errors
+      setSnackbarMessage("User roles saved successfully!"); // Set success message
+      setSnackbarOpen(true); // Open Snackbar
     } catch (error) {
       console.error("Error saving user roles:", error);
-      setError("Failed to save user roles."); // Set error message
+      setSnackbarMessage("Failed to save user roles."); // Set error message
+      setSnackbarOpen(true); // Open Snackbar
     }
   };
 
   const handleLogout = () => {
-    // Implement your logout logic here
+    // Clear user session (e.g., remove token from local storage)
+    localStorage.removeItem("authToken"); // Adjust this based on your authentication method
     console.log("User logged out");
-    // navigate("/login"); // Uncomment this line to redirect to login page after logout
+    navigate("/"); // Redirect to login page after logout
+  };
+
+  // Snackbar close handler
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
   };
 
   return (
     <Container sx={{ paddingTop: 4, maxWidth: '600px', margin: '0 auto', textAlign: "center", fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif' }}>
       <IconButton 
-        onClick={() => navigate("/bin-view")} // Navigate to the Bin View
+        onClick={() => navigate("/bin-count")} // Navigate to the Bin View
         sx={{
           position: "absolute",
           top: 16,
@@ -95,7 +109,7 @@ const UserManagement = () => {
           borderRadius: "50%",
           width: 48,
           height: 48,
-          "&:hover": { backgroundColor: "#005EC2" }, // Darker shade on hover
+          "&:hover": { backgroundColor: "#007AFF" }
         }}
       >
         <ArrowBackIcon />
@@ -107,12 +121,12 @@ const UserManagement = () => {
           position: "absolute",
           top: 16,
           right: 16,
-          backgroundColor: "#007AFF",
+          backgroundColor: "#c",
           color: "white",
           borderRadius: "50%",
           width: 48,
           height: 48,
-          "&:hover": { backgroundColor: "#005EC2" }, // Darker shade on hover
+          "&:hover": { backgroundColor: "#007AFF" },
         }}
       >
         <LogoutIcon />
@@ -129,8 +143,6 @@ const UserManagement = () => {
         User Management
       </Typography>
 
-      {error && <Typography color="error">{error}</Typography>} {/* Display error message */}
-
       <Button 
         variant="contained" 
         onClick={handleSaveRoles} // Save roles when clicked
@@ -138,7 +150,7 @@ const UserManagement = () => {
           backgroundColor: "#007AFF",
           boxShadow: "none", // Remove drop shadow
           "&:hover": {
-            backgroundColor: "#005EC2",
+            backgroundColor: "#007AFF",
             boxShadow: "none", // Ensure no shadow on hover
           },
           marginBottom: 6,
@@ -150,7 +162,7 @@ const UserManagement = () => {
       </Button>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', marginBottom: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'medium', marginBottom: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: 1 }}>
           <Box sx={{ flex: '40%', textAlign: 'left' }}>User</Box> {/* Adjusted flex value for smaller width */}
           <Box sx={{ flex: '20%', textAlign: 'center' }}>Delete</Box>
           <Box sx={{ flex: '40%', textAlign: 'center' }}>Role</Box> {/* Left align the Role header */}
@@ -205,6 +217,14 @@ const UserManagement = () => {
         onClose={() => setOpenDeleteModal(false)} 
         onConfirm={handleConfirmDelete} 
         user={userToDelete} 
+      />
+
+      {/* Snackbar for error messages */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        message={snackbarMessage}
       />
     </Container>
   );

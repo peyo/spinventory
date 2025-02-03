@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { TextField, Container, Typography, IconButton } from "@mui/material";
+import { TextField, Container, Typography, IconButton, Snackbar } from "@mui/material";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "firebase/auth"; // Import the method
 import { auth } from "../config/firebase";
 import { getDatabase, ref, set } from "firebase/database"; // Import database functions
 import { useNavigate } from "react-router-dom";
@@ -10,15 +10,24 @@ const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState(null);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSignUp = async () => {
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setSnackbarMessage("Passwords do not match.");
+      setSnackbarOpen(true);
       return;
     }
+
     try {
+      // Check if the email is already registered
+      const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+      if (signInMethods.length > 0) {
+        throw new Error("An account with this email already exists.");
+      }
+
       // Create user with email and password
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user; // Get the user object
@@ -37,8 +46,17 @@ const SignUp = () => {
       // Redirect to tallying page after signup
       navigate("/tally");
     } catch (error) {
-      setError(error.message);
+      setSnackbarMessage(error.message); // Set error message
+      setSnackbarOpen(true); // Open Snackbar
     }
+  };
+
+  // Handle Snackbar close
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
   };
 
   return (
@@ -55,8 +73,6 @@ const SignUp = () => {
       <Typography variant="h5" sx={{ marginBottom: 4, fontWeight: "bold", color: "#000" }}>
         Sign Up
       </Typography>
-
-      {error && <Typography color="error">{error}</Typography>}
 
       <TextField
         label="Email"
@@ -115,6 +131,14 @@ const SignUp = () => {
       >
         <ArrowForwardIosIcon />
       </IconButton>
+
+      {/* Snackbar for error messages */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        message={snackbarMessage}
+      />
     </Container>
   );
 };
