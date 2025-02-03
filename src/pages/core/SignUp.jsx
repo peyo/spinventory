@@ -2,7 +2,7 @@ import { useState } from "react";
 import { TextField, Container, Typography, IconButton, Snackbar } from "@mui/material";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "firebase/auth"; // Import the method
-import { auth } from "../config/firebase";
+import { auth } from "../../config/firebase";
 import { getDatabase, ref, set } from "firebase/database"; // Import database functions
 import { useNavigate } from "react-router-dom";
 

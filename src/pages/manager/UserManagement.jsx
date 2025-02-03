@@ -6,6 +6,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
 import DeleteIcon from "@mui/icons-material/Delete"; // Import trash can icon
 import LogoutIcon from "@mui/icons-material/Logout"; // Import logout icon
 import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
+import { signOut } from "firebase/auth"; // Import signOut from Firebase
+import { auth } from "../../config/firebase"; // Ensure this path is correct
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -81,19 +83,14 @@ const UserManagement = () => {
     }
   };
 
-  const handleLogout = () => {
-    // Clear user session (e.g., remove token from local storage)
-    localStorage.removeItem("authToken"); // Adjust this based on your authentication method
-    console.log("User logged out");
-    navigate("/"); // Redirect to login page after logout
-  };
-
-  // Snackbar close handler
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/"); // Redirect to login page after logout
+    } catch (error) {
+      setSnackbarMessage("Logout failed: " + error.message);
+      setSnackbarOpen(true); // Open Snackbar
     }
-    setSnackbarOpen(false);
   };
 
   return (
@@ -121,12 +118,12 @@ const UserManagement = () => {
           position: "absolute",
           top: 16,
           right: 16,
-          backgroundColor: "#c",
+          backgroundColor: "#007AFF",
           color: "white",
           borderRadius: "50%",
           width: 48,
           height: 48,
-          "&:hover": { backgroundColor: "#007AFF" },
+          "&:hover": { backgroundColor: "#005EC2" },
         }}
       >
         <LogoutIcon />
@@ -142,6 +139,15 @@ const UserManagement = () => {
       >
         User Management
       </Typography>
+
+      {snackbarOpen && (
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={6000}
+          onClose={() => setSnackbarOpen(false)}
+          message={snackbarMessage}
+        />
+      )}
 
       <Button 
         variant="contained" 
@@ -203,8 +209,9 @@ const UserManagement = () => {
                     },
                   }}
                 >
-                  <MenuItem value="tallier">Tallier</MenuItem>
+                  <MenuItem value="admin">Admin</MenuItem>
                   <MenuItem value="accountant">Accountant</MenuItem>
+                  <MenuItem value="tallier">Tallier</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -217,14 +224,6 @@ const UserManagement = () => {
         onClose={() => setOpenDeleteModal(false)} 
         onConfirm={handleConfirmDelete} 
         user={userToDelete} 
-      />
-
-      {/* Snackbar for error messages */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        message={snackbarMessage}
       />
     </Container>
   );

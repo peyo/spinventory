@@ -139,44 +139,44 @@ const BinCount = () => {
       </Button>
 
       {totalCount > 0 && ( // Only show total count if it's greater than 0
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium', color: "#000" }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium', color: "#000", marginBottom: 3 }}>
           Total Tallies: {totalCount}
         </Typography>
       )}
 
-      {tallies.length > 0 && ( // Only show the tallies if they exist
+        {tallies.length > 0 && ( // Only show the tallies if they exist
         <Box sx={{ display: 'flex', flexDirection: 'column', marginTop: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', fontWeight: 'bold', marginBottom: 1 }}>
-            <Box sx={{ flex: '1 1 100px', textAlign: 'center' }}>Bin #</Box>
-            <Box sx={{ flex: '1 1 100px', textAlign: 'center' }}>Condition</Box>
-            <Box sx={{ flex: '1 1 100px', textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>User</Box>
-            <Box sx={{ flex: '1 1 100px', textAlign: 'center' }}>Tally</Box>
-            <Box sx={{ flex: '1 1 100px', textAlign: 'center' }}>Actions</Box>
-          </Box>
-          {tallies
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', fontWeight: 'bold', marginBottom: 1 }}>
+            <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>Bin #</Box>
+            <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>Type</Box>
+            <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>User</Box> {/* Adjusted width */}
+            <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>Tally</Box>
+            <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>Actions</Box>
+            </Box>
+            {tallies
             .sort((a, b) => a.binId - b.binId) // Sort tallies by binId in ascending order
             .map((tally) => {
-              // Calculate the total tally from the tallies object
-              const totalTally = Object.values(tally.tallies).reduce((sum, value) => sum + value, 0);
+                // Calculate the total tally from the tallies object
+                const totalTally = Object.values(tally.tallies).reduce((sum, value) => sum + value, 0);
 
-              return (
-                <Box key={tally.binId} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1, height: '50px' }}> {/* Set a fixed height */}
-                  <Box sx={{ flex: '1 1 100px', textAlign: 'center' }}>{tally.binId}</Box>
-                  <Box sx={{ flex: '1 1 100px', textAlign: 'center' }}>{tally.condition}</Box>
-                  <Box sx={{ flex: '1 1 100px', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tally.submittedBy}</Box>
-                  <Box sx={{ flex: '1 1 100px', textAlign: 'center' }}>{totalTally || 0}</Box>
-                  <Box sx={{ flex: '1 1 100px', textAlign: 'center' }}>
+                return (
+                <Box key={tally.binId} sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginBottom: 1, height: '50px' }}> {/* Set a fixed height */}
+                    <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>{tally.binId}</Box>
+                    <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>{tally.condition}</Box>
+                    <Box sx={{ flex: '1 1 100px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tally.submittedBy}</Box> {/* Adjusted width */}
+                    <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>{totalTally || 0}</Box>
+                    <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>
                     <IconButton 
-                      onClick={() => handleDeleteCount(tally.condition)} // Pass the condition for deletion
+                        onClick={() => handleDeleteCount(tally.condition)} // Pass the condition for deletion
                     >
-                      <DeleteIcon />
+                        <DeleteIcon />
                     </IconButton>
-                  </Box>
+                    </Box>
                 </Box>
-              );
+                );
             })}
         </Box>
-      )}
+        )}
 
       {/* Snackbar for error messages */}
       <Snackbar

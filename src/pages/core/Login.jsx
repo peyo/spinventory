@@ -2,9 +2,9 @@ import { useState } from "react";
 import { TextField, Container, Typography, IconButton, Link, Snackbar } from "@mui/material";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../config/firebase"; // Ensure this path is correct
+import { auth } from "../../config/firebase"; // Ensure this path is correct
 import { useNavigate } from "react-router-dom";
-import API_URL from "../config/config"; // Import the API URL
+import API_URL from "../../config/config"; // Import the API URL
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -26,6 +26,8 @@ const Login = () => {
         navigate("/tally"); // Redirect to Tally page
       } else if (userRole === "accountant") {
         navigate("/accounting"); // Redirect to Accounting page
+      } else if (userRole === "admin") {
+        navigate("/user-management"); // Redirect to User Management page
       } else {
         setSnackbarMessage("Role not recognized."); // Handle unexpected roles
         setSnackbarOpen(true); // Open Snackbar
