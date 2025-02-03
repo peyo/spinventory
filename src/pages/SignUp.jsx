@@ -3,6 +3,7 @@ import { TextField, Container, Typography, IconButton } from "@mui/material";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../config/firebase";
+import { getDatabase, ref, set } from "firebase/database"; // Import database functions
 import { useNavigate } from "react-router-dom";
 
 const SignUp = () => {
@@ -18,8 +19,23 @@ const SignUp = () => {
       return;
     }
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      navigate("/tally"); // Redirect to tallying page after signup
+      // Create user with email and password
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user; // Get the user object
+
+      // Get a reference to the database
+      const db = getDatabase();
+
+      // Store user data in the database
+      await set(ref(db, 'users/' + user.uid), {
+        email: user.email,
+        role: "tallier"
+      });
+
+      console.log("User created and data stored successfully!");
+
+      // Redirect to tallying page after signup
+      navigate("/tally");
     } catch (error) {
       setError(error.message);
     }

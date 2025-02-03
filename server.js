@@ -23,8 +23,26 @@ admin.initializeApp({
   databaseURL: "https://spinventory-25db0-default-rtdb.firebaseio.com/"
 });
 
+// POST endpoint to create a new user
+app.post('/api/users', async (req, res) => {
+    const { uid, email } = req.body; // Get user data from the request body
+
+    try {
+        // Store user data in the database
+        await admin.database().ref('users/' + uid).set({
+            email: email,
+            role: "tallier" // Default role if not provided
+        });
+
+        res.status(201).send({ message: "User data stored successfully." });
+    } catch (error) {
+        console.error("Error storing user data:", error);
+        res.status(500).send("Error storing user data");
+    }
+});
+
 // POST endpoint to save tally data
-app.post('/bins/:binId/tallies/:date', async (req, res) => {
+app.post('/api/tally/bins/:binId/tallies/:date', async (req, res) => {
     const { condition, counter, tallier, submittedBy, tallies, manualPrices, createdAt } = req.body; // Ensure you have the correct fields
     const { binId, date } = req.params;
 
@@ -56,7 +74,7 @@ app.post('/bins/:binId/tallies/:date', async (req, res) => {
 });
 
 // DELETE endpoint to remove a manual price
-app.delete('/manual-prices/:priceId', async (req, res) => {
+app.delete('/api/tally/manual-prices/:priceId', async (req, res) => {
     const priceId = req.params.priceId; // Get the price ID from the URL
 
     try {
@@ -70,29 +88,8 @@ app.delete('/manual-prices/:priceId', async (req, res) => {
     }
 });
 
-// GET endpoint to retrieve tallies for a specific user
-app.get('/tallies/:email', async (req, res) => {
-    const { email } = req.params;
-    console.log("Fetching tallies for email:", email);
-
-    try {
-        const talliesRef = admin.database().ref('tallies').orderByChild('submittedBy').equalTo(email);
-        const snapshot = await talliesRef.once('value');
-        const data = snapshot.val();
-
-        if (data) {
-            res.status(200).send(data);
-        } else {
-            res.status(404).send("No tallies found for this user.");
-        }
-    } catch (error) {
-        console.error("Error retrieving tallies:", error);
-        res.status(500).send("Error retrieving tallies");
-    }
-});
-
 // PUT endpoint to update a tally
-app.put('/tallies/:date/:condition', async (req, res) => {
+app.put('/api/tally/tallies/:date/:condition', async (req, res) => {
     const { date, condition } = req.params; // Get the date and condition from the URL
     const tallyKey = `${date}_${condition}`; // Construct the tallyKey
     const updatedTally = req.body; // Get the updated tally data from the request body
@@ -117,7 +114,7 @@ app.put('/tallies/:date/:condition', async (req, res) => {
 });
 
 // GET endpoint to retrieve a specific tally by date and condition for editing
-app.get('/tallies/:date/:condition', async (req, res) => {
+app.get('/api/tally/tallies/:date/:condition', async (req, res) => {
     const { date, condition } = req.params; // Get the date and condition from the URL
     const tallyKey = `${date}_${condition}`; // Construct the tallyKey
     console.log("Fetching tally with key:", tallyKey); // Debugging log
@@ -135,6 +132,76 @@ app.get('/tallies/:date/:condition', async (req, res) => {
     } catch (error) {
         console.error("Error retrieving tally:", error);
         res.status(500).json({ message: 'Error retrieving tally' });
+    }
+});
+
+// GET endpoint to retrieve tallies for a specific user
+app.get('/api/records/tallies/:email', async (req, res) => {
+    const { email } = req.params;
+    console.log("Fetching tallies for email:", email);
+
+    try {
+        const talliesRef = admin.database().ref('tallies').orderByChild('submittedBy').equalTo(email);
+        const snapshot = await talliesRef.once('value');
+        const data = snapshot.val();
+
+        if (data) {
+            res.status(200).send(data);
+        } else {
+            res.status(404).send("No tallies found for this user.");
+        }
+    } catch (error) {
+        console.error("Error retrieving tallies:", error);
+        res.status(500).send("Error retrieving tallies");
+    }
+});
+
+// GET endpoint to retrieve all users
+app.get('/api/users', async (req, res) => {
+    try {
+        const usersRef = admin.database().ref('users'); // Adjust the path as necessary
+        const snapshot = await usersRef.once('value');
+        const data = snapshot.val();
+
+        if (data) {
+            res.status(200).send(data); // Send the user data back to the client
+        } else {
+            res.status(404).send("No users found.");
+        }
+    } catch (error) {
+        console.error("Error retrieving users:", error);
+        res.status(500).send("Error retrieving users");
+    }
+});
+
+// DELETE endpoint to remove a user by ID
+app.delete('/api/users/:userId', async (req, res) => {
+    const { userId } = req.params; // Get the user ID from the URL
+
+    try {
+        const userRef = admin.database().ref(`users/${userId}`); // Reference to the user in the database
+        await userRef.remove(); // Remove the user from the database
+
+        res.status(200).json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        res.status(500).json({ message: 'Error deleting user' });
+    }
+});
+
+// PUT endpoint to update a user's role
+app.put('/api/users/:userId', async (req, res) => {
+    const { userId } = req.params; // Get the user ID from the URL
+    const { role } = req.body; // Get the new role from the request body
+
+    try {
+        const userRef = admin.database().ref(`users/${userId}`); // Reference to the user in the database
+        await userRef.update({ role }); // Update the user's role
+
+        res.status(200).json({ message: 'User role updated successfully' });
+    } catch (error) {
+        console.error("Error updating user role:", error);
+        res.status(500).json({ message: 'Error updating user role' });
     }
 });
 

@@ -76,7 +76,7 @@ const Tally = () => {
   
     try {
       // Make a DELETE request to the server
-      const response = await fetch(`http://localhost:3000/manual-prices/${sanitizedPrice}`, {
+      const response = await fetch(`http://localhost:3000/api/tally/manual-prices/${sanitizedPrice}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ const Tally = () => {
     };
 
     try {
-        const response = await fetch(`http://localhost:3000/bins/${bin}/tallies/${dateKey}`, { // Use date as key
+        const response = await fetch(`http://localhost:3000/api/tally/bins/${bin}/tallies/${dateKey}`, { // Use date as key
             method: 'POST', // Use POST to add or update the entry
             headers: {
                 'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ const Tally = () => {
     };
 
     try {
-        const response = await fetch(`http://localhost:3000/tallies/${dateKey}/${condition}`, { // Use date and condition
+        const response = await fetch(`http://localhost:3000/api/tally/${dateKey}/${condition}`, { // Use date and condition
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ const Tally = () => {
           const date = tallyData.createdAt; // This should be the Unix timestamp
           const condition = tallyData.condition; // Condition from the tally data
           
-          const response = await fetch(`http://localhost:3000/tallies/${date}/${condition}`); // Use date and condition
+          const response = await fetch(`http://localhost:3000/api/tally/tallies/${date}/${condition}`); // Use date and condition
           if (!response.ok) {
             throw new Error('Failed to fetch tally data');
           }

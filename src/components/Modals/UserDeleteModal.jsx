@@ -8,8 +8,21 @@ const UserDeleteModal = ({ open, onClose, onConfirm, user }) => {
                 <Typography variant="h6">Confirm Deletion</Typography>
                 <Typography>Are you sure you want to delete {user?.email}?</Typography>
                 <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
-                    <Button variant="contained" color="primary" onClick={onConfirm}>Delete</Button>
-                    <Button variant="outlined" onClick={onClose}>Cancel</Button>
+                    <Button 
+                        variant="contained" 
+                        color="primary" 
+                        onClick={onConfirm} 
+                        sx={{ borderRadius: 12 }} // Rounded corners for the Delete button
+                    >
+                        Delete
+                    </Button>
+                    <Button 
+                        variant="outlined" 
+                        onClick={onClose} 
+                        sx={{ borderRadius: 12 }} // Rounded corners for the Cancel button
+                    >
+                        Cancel
+                    </Button>
                 </div>
             </div>
         </Modal>

@@ -5,8 +5,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import { auth } from "../../config/firebase"; // Ensure you have the correct import
 import { ref, remove } from "firebase/database";
 import { database } from "../../config/firebase"; // Adjust the path as necessary
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { Link, useNavigate } from "react-router-dom"; // Import Link and useNavigate for navigation
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
 
@@ -20,7 +20,7 @@ const Records = () => {
         if (user) {
             const fetchTallies = async () => {
                 try {
-                    const response = await fetch(`http://localhost:3000/tallies/${user.email}`);
+                    const response = await fetch(`http://localhost:3000/api/records/tallies/${user.email}`);
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
