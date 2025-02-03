@@ -2,9 +2,11 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import SignUp from "./pages/SignUp";
-import Tally from "./pages/Tally";
-import Records from './pages/Records';
-import './App.css';
+import Tally from "./pages/tallier/Tally";
+import Records from "./pages/tallier/Records";
+import UserManagement from "./pages/manager/UserManagement";
+// import BinCount from './pages/admin/BinCount';
+import './styles/App.css';
 
 function Main() {
   return (
@@ -15,6 +17,8 @@ function Main() {
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/tally" element={<Tally />} />
         <Route path="/records" element={<Records />} />
+        <Route path="/user-management" element={<UserManagement />} />
+        {/* <Route path="/bin-count" element={<BinCount />} /> */}
       </Routes>
     </Router>
   );

@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { Container, Typography, List, ListItem, ListItemText, IconButton, CircularProgress } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import { auth } from "../config/firebase"; // Ensure you have the correct import
+import { auth } from "../../config/firebase"; // Ensure you have the correct import
 import { ref, remove } from "firebase/database";
-import { database } from "../config/firebase"; // Adjust the path as necessary
+import { database } from "../../config/firebase"; // Adjust the path as necessary
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Link, useNavigate } from "react-router-dom"; // Import Link and useNavigate for navigation
@@ -74,7 +74,7 @@ const Records = () => {
                     borderRadius: "50%",
                     width: 48,
                     height: 48,
-                    "&:hover": { backgroundColor: "#0056b3" },
+                    "&:hover": { backgroundColor: "#007AFF" },
                 }}
             >
                 <ArrowBackIcon />

@@ -55,6 +55,21 @@ app.post('/bins/:binId/tallies/:date', async (req, res) => {
     }
 });
 
+// DELETE endpoint to remove a manual price
+app.delete('/manual-prices/:priceId', async (req, res) => {
+    const priceId = req.params.priceId; // Get the price ID from the URL
+
+    try {
+        const priceRef = admin.database().ref(`manualPrices/${priceId}`); // Reference to the manual price in the database
+        await priceRef.remove(); // Remove the price from the database
+
+        res.status(200).json({ message: 'Manual price deleted successfully' });
+    } catch (error) {
+        console.error("Error deleting manual price:", error);
+        res.status(500).json({ message: 'Error deleting manual price' });
+    }
+});
+
 // GET endpoint to retrieve tallies for a specific user
 app.get('/tallies/:email', async (req, res) => {
     const { email } = req.params;
@@ -101,7 +116,7 @@ app.put('/tallies/:date/:condition', async (req, res) => {
     }
 });
 
-// GET endpoint to retrieve a specific tally by date and condition
+// GET endpoint to retrieve a specific tally by date and condition for editing
 app.get('/tallies/:date/:condition', async (req, res) => {
     const { date, condition } = req.params; // Get the date and condition from the URL
     const tallyKey = `${date}_${condition}`; // Construct the tallyKey

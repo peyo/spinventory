@@ -2,7 +2,7 @@
     width: 100%; /* Ensure full width */
     background-color: rgba(118, 118, 128, 0.12);
     border-radius: 12px; /* Match Material-UI border radius */
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     border: 1px solid #b7b7b7; /* Default border color */
     box-sizing: border-box; /* Include padding and border in element's total width and height */
     border-radius: 45px; /* Match border radius */

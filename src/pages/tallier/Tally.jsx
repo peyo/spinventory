@@ -8,10 +8,10 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import { auth } from "../config/firebase";
+import { auth } from "../../config/firebase";
 import { useNavigate, Link, useLocation } from "react-router-dom"; // Import Link for navigation and useLocation for access passed state
 import { ref, onValue } from "firebase/database";
-import { database } from "../config/firebase"; // Adjust the path as necessary
+import { database } from "../../config/firebase"; // Adjust the path as necessary
 
 const pricesNew = Array.from({ length: 99 }, (_, i) => (i + 1) + 0.99);
 const pricesUsed = Array.from({ length: 100 }, (_, i) => i + 1);
@@ -71,13 +71,34 @@ const Tally = () => {
     setManualPrice(""); // Clear the input field
   };
 
-  const handleManualPriceDelete = (price) => {
-    setTallies((prev) => {
-      const newTallies = { ...prev };
-      delete newTallies[Math.round(price * 100)]; // Ensure the key is sanitized
-      return newTallies;
-    });
-    setManualPrices((prev) => prev.filter((p) => p !== price));
+  const handleManualPriceDelete = async (price) => {
+    const sanitizedPrice = Math.round(price * 100); // Sanitize the price for key access
+  
+    try {
+      // Make a DELETE request to the server
+      const response = await fetch(`http://localhost:3000/manual-prices/${sanitizedPrice}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to delete the manual price');
+      }
+  
+      // Update local state after successful deletion
+      setTallies((prev) => {
+        const newTallies = { ...prev };
+        delete newTallies[sanitizedPrice]; // Remove from local state
+        return newTallies;
+      });
+  
+      setManualPrices((prev) => prev.filter((p) => p !== price)); // Remove from manual prices
+    } catch (error) {
+      console.error("Error deleting manual price:", error);
+      alert("Failed to delete manual price.");
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -250,7 +271,7 @@ const Tally = () => {
           borderRadius: "50%",
           width: 48,
           height: 48,
-          "&:hover": { backgroundColor: "#0056b3" }, // Darker shade on hover
+          "&:hover": { backgroundColor: "#007AFF" }, // Darker shade on hover
         }}
       >
         <ArrowBackIcon />
@@ -285,68 +306,79 @@ const Tally = () => {
       </IconButton>
 
       <form onSubmit={isEditing ? handleEdit : handleSubmit}>
-        <TextField 
-          label="Bin # *" 
-          value={bin} 
-          onChange={(e) => setBin(e.target.value)} 
-          fullWidth 
-          margin="normal" 
-          sx={{
-            backgroundColor: "rgba(118, 118, 128, 0.12)",
-            borderRadius: 12,
-            "& .MuiOutlinedInput-root": { borderRadius: 12 },
-            marginBottom: 2
-          }} 
-        />
-        
-        <div style={{ position: 'relative', zIndex: 1000 }}>
+        <Container sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%', padding: 0 }}>
+          <TextField 
+            label="Bin # *" 
+            value={bin} 
+            onChange={(e) => setBin(e.target.value)} 
+            fullWidth 
+            sx={{
+              backgroundColor: "rgba(118, 118, 128, 0.12)",
+              borderRadius: 12,
+              "& .MuiOutlinedInput-root": { 
+                borderRadius: 12,
+              },
+              marginBottom: 1,
+            }} 
+          />
+          
+          <div style={{ position: 'relative', zIndex: 1000, width: '100%' }}>
             <DatePicker
-                selected={selectedDate}
-                onChange={(date) => setSelectedDate(date)}
-                dateFormat="yyyy/MM/dd"
-                placeholderText="Select Date"
-                wrapperClassName="date-picker" // Use the wrapper class for styling
+              selected={selectedDate}
+              onChange={(date) => setSelectedDate(date)}
+              dateFormat="yyyy/MM/dd"
+              placeholderText="Select Date"
+              wrapperClassName="date-picker" // Use the wrapper class for styling
             />
-        </div>
+          </div>
 
-        <Select 
-          value={condition} 
-          onChange={(e) => setCondition(e.target.value)} 
-          fullWidth 
-          sx={{
-            backgroundColor: "rgba(118, 118, 128, 0.12)",
-            marginBottom: 2,
-            borderRadius: 12,
-            "& .MuiOutlinedInput-root": { borderRadius: 12 }
-          }}
-        >
-          <MenuItem value="white">New (White)</MenuItem>
-          <MenuItem value="orange">Used (Orange)</MenuItem>
-        </Select>
-        <TextField 
-          label="Counter *" 
-          value={counter} 
-          onChange={(e) => setCounter(e.target.value)} 
-          fullWidth 
-          margin="normal"
-          sx={{
-            backgroundColor: "rgba(118, 118, 128, 0.12)",
-            borderRadius: 12, "& .MuiOutlinedInput-root": { borderRadius: 12 },
-            marginBottom: 2
-          }}
-        />
-        <TextField 
-          label="Tallier *" 
-          value={tallier} 
-          onChange={(e) => setTallier(e.target.value)} 
-          fullWidth 
-          margin="normal"
-          sx={{
-            backgroundColor: "rgba(118, 118, 128, 0.12)",
-            borderRadius: 12, "& .MuiOutlinedInput-root": { borderRadius: 12 },
-            marginBottom: 2
-          }}
-        />
+          <Select 
+            value={condition} 
+            onChange={(e) => setCondition(e.target.value)} 
+            fullWidth 
+            sx={{
+              backgroundColor: "rgba(118, 118, 128, 0.12)",
+              borderRadius: 12,
+              "& .MuiOutlinedInput-root": { 
+                borderRadius: 12,
+              },
+              marginBottom: 1,
+            }}
+          >
+            <MenuItem value="white">New (White)</MenuItem>
+            <MenuItem value="orange">Used (Orange)</MenuItem>
+          </Select>
+
+          <TextField 
+            label="Counter *" 
+            value={counter} 
+            onChange={(e) => setCounter(e.target.value)} 
+            fullWidth 
+            sx={{
+              backgroundColor: "rgba(118, 118, 128, 0.12)",
+              borderRadius: 12, 
+              "& .MuiOutlinedInput-root": { 
+                borderRadius: 12,
+              },
+              marginBottom: 1,
+            }}
+          />
+
+          <TextField 
+            label="Tallier *" 
+            value={tallier} 
+            onChange={(e) => setTallier(e.target.value)} 
+            fullWidth 
+            sx={{
+              backgroundColor: "rgba(118, 118, 128, 0.12)",
+              borderRadius: 12, 
+              "& .MuiOutlinedInput-root": { 
+                borderRadius: 12,
+              },
+              marginBottom: 2,
+            }}
+          />
+        </Container>
 
         {((condition === "white" ? pricesNew : pricesUsed)
             .concat(manualPrices.sort((a, b) => a - b))) // Combine preset and manual prices
@@ -401,7 +433,6 @@ const Tally = () => {
                                         justifyContent: "center",
                                         flexShrink: 0,
                                         boxShadow: "none", // Removes shadow
-                                        "&:hover": { backgroundColor: "red", boxShadow: "none" } // Keep the same color on hover
                                     }}
                                 >
                                     <DeleteIcon fontSize="small" />
@@ -487,20 +518,21 @@ const Tally = () => {
                     </Container>
                 );
             })}
-        
-        <TextField 
-          label="Manual Price" 
-          value={manualPrice} 
-          onChange={(e) => setManualPrice(e.target.value)} 
-          fullWidth 
-          margin="normal" 
-          sx={{
-              backgroundColor: "rgba(118, 118, 128, 0.12)",
-              borderRadius: 12,
-              "& .MuiOutlinedInput-root": { borderRadius: 12 },
-              marginBottom: 3
-            }}
-        />
+        <Container sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%', padding: 0 }}>
+          <TextField 
+            label="Manual Price" 
+            value={manualPrice} 
+            onChange={(e) => setManualPrice(e.target.value)} 
+            fullWidth 
+            margin="normal"
+            sx={{
+                backgroundColor: "rgba(118, 118, 128, 0.12)",
+                borderRadius: 12,
+                "& .MuiOutlinedInput-root": { borderRadius: 12 },
+                marginBottom: 3,
+              }}
+          />
+        </Container>
         <Button
           onClick={(e) => { e.preventDefault(); handleManualPriceAdd(); }}
           variant="contained"
