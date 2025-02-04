@@ -350,7 +350,7 @@ const Tally = () => {
             <DatePicker
               selected={selectedDate}
               onChange={(date) => setSelectedDate(date)}
-              dateFormat="yyyy/MM/dd"
+              dateFormat="MM/dd/yyyy"
               placeholderText="Select Date"
               wrapperClassName="date-picker" // Use the wrapper class for styling
             />

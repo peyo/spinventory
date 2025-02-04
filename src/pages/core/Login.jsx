@@ -102,7 +102,7 @@ const Login = () => {
           marginTop: 3,
           backgroundColor: "#007AFF", 
           color: "white",
-          "&:hover": { backgroundColor: "#005EC2" },
+          "&:hover": { backgroundColor: "#007AFF" },
         }}
       >
         <ArrowForwardIosIcon />

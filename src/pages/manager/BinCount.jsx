@@ -113,7 +113,7 @@ const BinCount = () => {
       <DatePicker
         selected={startDate} // Use the selected start date
         onChange={(date) => setStartDate(date)} // Update start date
-        dateFormat="yyyy/MM/dd"
+        dateFormat="MM/dd/yyyy"
         placeholderText="Start Date"
         wrapperClassName="date-picker"
         sx={{ marginBottom: 2 }}
@@ -123,7 +123,7 @@ const BinCount = () => {
       <DatePicker
         selected={endDate} // Use the selected end date
         onChange={(date) => setEndDate(date)} // Update end date
-        dateFormat="yyyy/MM/dd"
+        dateFormat="MM/dd/yyyy"
         placeholderText="End Date"
         wrapperClassName="date-picker"
         sx={{ marginBottom: 2 }}

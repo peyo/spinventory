@@ -5,6 +5,9 @@ import "react-datepicker/dist/react-datepicker.css"; // Import CSS for styling
 import { Parser } from '@json2csv/plainjs'; // Import the Parser class
 import API_URL from "../../config/config"; // Import the API URL
 import LogoutIcon from '@mui/icons-material/Logout'; // Import the logout icon
+import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
+import { signOut } from "firebase/auth"; // Import signOut from Firebase
+import { auth } from "../../config/firebase"; // Ensure this path is correct
 
 const Accounting = () => {
   const [startDate, setStartDate] = useState(null);
@@ -13,12 +16,16 @@ const Accounting = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate(); // Initialize navigate
 
-  const handleLogout = () => {
-    // Logic to handle logout
-    // For example, clear user data from local storage or context
-    localStorage.removeItem("user"); // Adjust based on your authentication method
-    history.push("/login"); // Redirect to the login page
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/");
+    } catch (error) {
+      setSnackbarMessage("Logout failed: " + error.message);
+      setSnackbarOpen(true);
+    }
   };
 
   const handleSendCSV = async () => {
@@ -142,7 +149,7 @@ const Accounting = () => {
             <DatePicker
             selected={startDate}
             onChange={(date) => setStartDate(date)}
-            dateFormat="yyyy/MM/dd"
+            dateFormat="MM/dd/yyyy"
             placeholderText="Start Date"
             wrapperClassName="date-picker" // Use the wrapper class for styling
             customInput={
@@ -185,7 +192,7 @@ const Accounting = () => {
             <DatePicker
             selected={endDate}
             onChange={(date) => setEndDate(date)}
-            dateFormat="yyyy/MM/dd"
+            dateFormat="MM/dd/yyyy"
             placeholderText="End Date"
             wrapperClassName="date-picker" // Use the wrapper class for styling
             customInput={

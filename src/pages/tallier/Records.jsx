@@ -99,7 +99,7 @@ const Records = () => {
                         >
                             <ListItemText
                                 primary={`Bin #${tally.binId} - ${tally.condition}`}
-                                secondary={`Created At: ${new Date(tally.createdAt * 1000).toLocaleString()}`}
+                                secondary={`Created On: ${new Date(tally.createdAt * 1000).toLocaleDateString()}`}
                             />
                             <div style={{ display: 'flex', gap: '8px' }}> {/* Flexbox for side-by-side buttons */}
                                 <IconButton onClick={() => handleEdit(tally)}>
