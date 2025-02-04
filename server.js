@@ -3,6 +3,7 @@ import admin from 'firebase-admin';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import nodemailer from 'nodemailer';
 
 const app = express();
 const port = 3000;
@@ -227,12 +228,17 @@ app.put('/api/user/:userId', async (req, res) => {
     }
 });
 
-// Fetch tallies by date
-app.get('/api/user/bins/:date', async (req, res) => {
-    const { date } = req.params;
-    console.log("Received date:", date); // Log the received date
+// Fetch tallies by date range
+app.get('/api/user/bins', async (req, res) => {
+    const { startDate, endDate } = req.query; // Extract startDate and endDate from query parameters
+    console.log("Received date range:", startDate, endDate); // Log the received dates
+
     try {
-        const talliesRef = admin.database().ref('tallies').orderByChild('createdAt').equalTo(parseInt(date)); // Ensure date is an integer
+        const startUnix = parseInt(startDate); // Convert startDate to integer
+        const endUnix = parseInt(endDate); // Convert endDate to integer
+
+        // Query to fetch tallies within the date range
+        const talliesRef = admin.database().ref('tallies').orderByChild('createdAt').startAt(startUnix).endAt(endUnix);
         const snapshot = await talliesRef.once('value');
         const tallies = snapshot.val();
 
@@ -241,7 +247,7 @@ app.get('/api/user/bins/:date', async (req, res) => {
         if (tallies) {
             res.status(200).json(tallies); // Send the tallies back to the client
         } else {
-            res.status(404).send("No tallies found for this date.");
+            res.status(404).send("No tallies found for this date range.");
         }
     } catch (error) {
         console.error("Error fetching tallies:", error);
@@ -263,6 +269,68 @@ app.delete('/api/user/bins/:tallyKey', async (req, res) => {
     } catch (error) {
         console.error("Error deleting bin count:", error);
         res.status(500).json({ message: 'Error deleting bin count' });
+    }
+});
+
+// Email sending endpoint
+app.post('/api/send-email', async (req, res) => {
+    const { email, csvContent } = req.body; // Get email and CSV content from the request body
+
+    // Set up nodemailer transporter
+    const transporter = nodemailer.createTransport({
+        service: 'gmail', // or your email service
+        auth: {
+            user: 'peteryyoon@gmail.com', // Your email
+            pass: 'ojpf idvk svvd reos', // Your email password
+        },
+    });
+
+    // Send email with CSV attachment
+    const mailOptions = {
+        from: 'peteryyoon@gmail.com',
+        to: email, // recipient email
+        subject: 'CSV Data',
+        text: 'Please find the attached CSV data.',
+        attachments: [
+            {
+                filename: 'data.csv',
+                content: csvContent, // Use the CSV content passed from the frontend
+            },
+        ],
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        res.status(200).send({ message: 'Email sent successfully!' });
+    } catch (error) {
+        console.error("Error sending email:", error);
+        res.status(500).send({ message: 'Failed to send email.' });
+    }
+});
+
+// GET endpoint to fetch data based on start and end dates
+app.get('/api/data', async (req, res) => {
+    console.log("Received request for data with:", req.query); // Log the query parameters
+    const { startDate, endDate } = req.query; // Get startDate and endDate from query parameters
+
+    try {
+        // Convert the timestamps back to integers
+        const start = parseInt(startDate);
+        const end = parseInt(endDate);
+
+        // Query your database to fetch data between the two timestamps
+        const dataRef = admin.database().ref('tallies'); // Adjusted path to your data
+        const snapshot = await dataRef.orderByChild('createdAt').startAt(start).endAt(end).once('value');
+        const data = snapshot.val();
+
+        if (data) {
+            res.status(200).json(data); // Send the data back to the client
+        } else {
+            res.status(404).send("No data found for the specified date range.");
+        }
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        res.status(500).send("Error fetching data");
     }
 });
 

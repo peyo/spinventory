@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Container, Typography, Button, Box, IconButton, Snackbar, TextField } from "@mui/material";
+import { Container, Typography, Button, Box, Snackbar, TextField, IconButton } from "@mui/material";
 import DatePicker from "react-datepicker"; // Import React Datepicker
 import "react-datepicker/dist/react-datepicker.css"; // Import CSS for styling
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Import the back arrow icon
-import { Link } from "react-router-dom"; // Import Link for navigation
+import { Parser } from '@json2csv/plainjs'; // Import the Parser class
+import API_URL from "../../config/config"; // Import the API URL
+import LogoutIcon from '@mui/icons-material/Logout'; // Import the logout icon
 
-const AccountingPage = () => {
+const Accounting = () => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [email, setEmail] = useState("");
@@ -13,40 +14,123 @@ const AccountingPage = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const handleLogout = () => {
+    // Logic to handle logout
+    // For example, clear user data from local storage or context
+    localStorage.removeItem("user"); // Adjust based on your authentication method
+    history.push("/login"); // Redirect to the login page
+  };
+
   const handleSendCSV = async () => {
     setLoading(true);
-    // Logic to send CSV
-    // On success:
-    setSnackbarMessage("CSV sent successfully!");
-    setSnackbarOpen(true);
-    setLoading(false);
-    // On error:
-    // setSnackbarMessage("Failed to send email. Please try again.");
-    // setSnackbarOpen(true);
-    // setLoading(false);
+    try {
+      // Convert startDate and endDate to Unix timestamps
+      const startUnix = Math.floor(new Date(startDate.setUTCHours(12, 0, 0)).getTime() / 1000);
+      const endUnix = Math.floor(new Date(endDate.setUTCHours(23, 59, 59)).getTime() / 1000); // Adjust to end of the day
+
+      console.log("Start Timestamp:", startUnix);
+      console.log("End Timestamp:", endUnix);
+
+      // Fetch data from the database based on selected Unix timestamps
+      const response = await fetch(`${API_URL}/api/data?startDate=${startUnix}&endDate=${endUnix}`);
+      const data = await response.json();
+      console.log("Fetched data:", data); // Log the fetched data
+
+      // Convert the object to an array
+      const dataArray = Object.values(data); // Convert the object to an array
+
+      // Check if dataArray is an array
+      if (!Array.isArray(dataArray)) {
+        console.error("Expected an array but received:", dataArray);
+        setSnackbarMessage("No data available.");
+        setSnackbarOpen(true);
+        return;
+      }
+
+      // Format the data for CSV
+      const formattedData = [];
+
+      dataArray.forEach(item => {
+        // If tallies exist, create a row for each tally
+        if (item.tallies) {
+          Object.entries(item.tallies).forEach(([key, value]) => {
+            const [price, count] = [key, value]; // Split key and value
+            formattedData.push({
+              binId: item.binId,
+              condition: item.condition,
+              counter: item.counter,
+              createdAt: new Date(item.createdAt * 1000).toLocaleString(), // Format the date
+              submittedBy: item.submittedBy,
+              tallier: item.tallier,
+              price: price, // Price from the tally key
+              count: count // Count from the tally value
+            });
+          });
+        } else {
+          // If no tallies, just push the item as is with empty price and count
+          formattedData.push({
+            binId: item.binId,
+            condition: item.condition,
+            counter: item.counter,
+            createdAt: new Date(item.createdAt * 1000).toLocaleString(), // Format the date
+            submittedBy: item.submittedBy,
+            tallier: item.tallier,
+            price: '', // No price
+            count: '' // No count
+          });
+        }
+      });
+
+      // Convert JSON data to CSV using the Parser
+      const parser = new Parser(); // Create a new Parser instance
+      const csv = parser.parse(formattedData); // Use the parse method to convert data to CSV
+
+      // Send email with CSV attachment
+      const emailResponse = await fetch(`${API_URL}/api/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, csvContent: csv }), // Send email and CSV content
+      });
+
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text(); // Get the response text
+        console.error('Error response:', errorText); // Log the error response
+        throw new Error('Failed to send email');
+      }
+
+      setSnackbarMessage("CSV sent successfully!");
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error("An error occurred:", error);
+      setSnackbarMessage("Failed to send email. Please try again.");
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isButtonDisabled = !startDate || !endDate || !email;
 
   return (
     <Container sx={{ paddingTop: 4, maxWidth: '600px', margin: '0 auto', textAlign: "center" }}>
-      {/* Back Button */}
+      {/* Logout Button */}
       <IconButton 
-        component={Link}
-        to="/user-management"
+        onClick={handleLogout}
         sx={{
-          position: "absolute",
-          top: 16,
-          left: 16,
-          backgroundColor: "#007AFF",
-          color: "white",
-          borderRadius: "50%",
-          width: 48,
-          height: 48,
-          "&:hover": { backgroundColor: "#007AFF" },
+            position: "absolute",
+            top: 16,
+            right: 16,
+            backgroundColor: "white",
+            color: "#007AFF",
+            borderRadius: "50%",
+            width: 48,
+            height: 48,
+            "&:hover": { backgroundColor: "#f0f0f0" },
         }}
       >
-        <ArrowBackIcon />
+        <LogoutIcon />
       </IconButton>
 
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: "#000", marginBottom: 3 }}>
@@ -186,4 +270,4 @@ const AccountingPage = () => {
   );
 };
 
-export default AccountingPage;
+export default Accounting;

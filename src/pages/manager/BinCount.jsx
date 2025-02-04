@@ -8,15 +8,16 @@ import "react-datepicker/dist/react-datepicker.css"; // Import CSS for styling
 import DeleteIcon from '@mui/icons-material/Delete'; // Import the Delete icon
 
 const BinCount = () => {
-  const [selectedDate, setSelectedDate] = useState(null); // Initialize as null
-  const [tallies, setTallies] = useState([]); // Reintroduce tallies state
+  const [startDate, setStartDate] = useState(null); // Initialize start date
+  const [endDate, setEndDate] = useState(null); // Initialize end date
+  const [tallies, setTallies] = useState([]); // State for tallies
   const [totalCount, setTotalCount] = useState(0);
   const [snackbarMessage, setSnackbarMessage] = useState(""); // State for Snackbar message
   const [snackbarOpen, setSnackbarOpen] = useState(false); // State for Snackbar open/close
 
   const handleDeleteCount = async (condition) => {
-    if (selectedDate) {
-      const dateKey = Math.floor(new Date(selectedDate.setUTCHours(12, 0, 0, 0)).getTime() / 1000);
+    if (startDate) {
+      const dateKey = Math.floor(new Date(startDate.setUTCHours(12, 0, 0, 0)).getTime() / 1000);
       const tallyKey = `${dateKey}_${condition}`;
       
       console.log("Attempting to delete tally with key:", tallyKey); // Log the tallyKey
@@ -35,17 +36,14 @@ const BinCount = () => {
     }
   };
 
-  const handleDateChange = (date) => {
-    setSelectedDate(date); // Set the selected date
-  };
-
   const handleFetchTallies = async () => {
-    if (selectedDate) {
-      const dateKey = Math.floor(new Date(selectedDate.setUTCHours(12, 0, 0, 0)).getTime() / 1000); // Convert to Unix timestamp
-      console.log("Fetching tallies for dateKey:", dateKey); // Log the dateKey for debugging
+    if (startDate && endDate) {
+      const startUnix = Math.floor(new Date(startDate.setUTCHours(12, 0, 0)).getTime() / 1000);
+      const endUnix = Math.floor(new Date(endDate.setUTCHours(23, 59, 59)).getTime() / 1000);
+      console.log("Fetching tallies from:", startUnix, "to:", endUnix); // Log the date range for debugging
   
       try {
-        const fetchedTallies = await fetchTalliesByDate(dateKey); // Pass the Unix timestamp
+        const fetchedTallies = await fetchTalliesByDate(startUnix, endUnix); // Pass the Unix timestamps
   
         // Convert the fetched tallies object to an array
         const talliesArray = Object.values(fetchedTallies); // Convert object to array
@@ -63,8 +61,8 @@ const BinCount = () => {
         setSnackbarOpen(true); // Open Snackbar
       }
     } else {
-      console.warn("No date selected."); // Warn if no date is selected
-      setSnackbarMessage("Please select a date."); // Set warning message
+      console.warn("No date range selected."); // Warn if no date range is selected
+      setSnackbarMessage("Please select both start and end dates."); // Set warning message
       setSnackbarOpen(true); // Open Snackbar
     }
   };
@@ -93,7 +91,7 @@ const BinCount = () => {
           borderRadius: "50%",
           width: 48,
           height: 48,
-          "&:hover": { backgroundColor: "#007AFF" }, // Change color on hover
+          "&:hover": { backgroundColor: "#005EC2" }, // Change color on hover
         }}
       >
         <ArrowBackIcon />
@@ -111,19 +109,30 @@ const BinCount = () => {
         Bin Count
       </Typography>
       
-      {/* Date Picker */}
+      {/* Date Picker for Start Date */}
       <DatePicker
-        selected={selectedDate} // Use the selected date
-        onChange={handleDateChange}
+        selected={startDate} // Use the selected start date
+        onChange={(date) => setStartDate(date)} // Update start date
         dateFormat="yyyy/MM/dd"
-        placeholderText="Select Date"
+        placeholderText="Start Date"
         wrapperClassName="date-picker"
         sx={{ marginBottom: 2 }}
       />
+
+      {/* Date Picker for End Date */}
+      <DatePicker
+        selected={endDate} // Use the selected end date
+        onChange={(date) => setEndDate(date)} // Update end date
+        dateFormat="yyyy/MM/dd"
+        placeholderText="End Date"
+        wrapperClassName="date-picker"
+        sx={{ marginBottom: 2 }}
+      />
+
       <Button 
         variant="contained" 
         onClick={handleFetchTallies}
-        disabled={!selectedDate} // Disable button if no date is selected
+        disabled={!startDate || !endDate} // Disable button if no date range is selected
         sx={{
           backgroundColor: "#007AFF",
           color: "white",
@@ -132,7 +141,10 @@ const BinCount = () => {
           display: "block",
           mx: "auto",
           boxShadow: "none", // Removes default shadow
-          "&:hover": { backgroundColor: "#007AFF", boxShadow: "none" } // Keep the same color on hover
+          "&:hover": {
+            backgroundColor: "#007AFF",
+            boxShadow: "none" // Ensure no shadow on hover
+          }
         }}
       >
         Fetch Tallies
@@ -144,7 +156,7 @@ const BinCount = () => {
         </Typography>
       )}
 
-        {tallies.length > 0 && ( // Only show the tallies if they exist
+      {tallies.length > 0 && ( // Only show the tallies if they exist
         <Box sx={{ display: 'flex', flexDirection: 'column', marginTop: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-start', fontWeight: 'bold', marginBottom: 1 }}>
             <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>Bin #</Box>

@@ -17,9 +17,14 @@ export const updateUserRole = async (userId, updatedUser) => {
   await axios.put(`${API_URL}/api/user/${userId}`, updatedUser); // Use the base URL with /api/
 };
 
-// Fetch tallies by date
-export const fetchTalliesByDate = async (date) => {
-  const response = await axios.get(`${API_URL}/api/user/bins/${date}`); // Adjust the endpoint as necessary
+// Fetch tallies by date range
+export const fetchTalliesByDate = async (startDate, endDate) => {
+  const response = await axios.get(`${API_URL}/api/user/bins`, {
+    params: {
+      startDate: startDate,
+      endDate: endDate
+    }
+  }); // Adjust the endpoint as necessary
   return response.data; // Assuming the response data is an array of tallies
 };
 

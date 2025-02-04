@@ -318,12 +318,12 @@ const Tally = () => {
           position: "absolute",
           top: 16,
           right: 16,
-          backgroundColor: "#007AFF",
-          color: "white",
+          backgroundColor: "white",
+          color: "#007AFF",
           borderRadius: "50%",
           width: 48,
           height: 48,
-          "&:hover": { backgroundColor: "#007AFF" },
+          "&:hover": { backgroundColor: "#f0f0f0" },
         }}
       >
         <LogoutIcon />
