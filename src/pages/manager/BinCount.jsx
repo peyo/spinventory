@@ -15,55 +15,69 @@ const BinCount = () => {
   const [snackbarMessage, setSnackbarMessage] = useState(""); // State for Snackbar message
   const [snackbarOpen, setSnackbarOpen] = useState(false); // State for Snackbar open/close
 
-  const handleDeleteCount = async (condition) => {
-    if (startDate) {
-      const dateKey = Math.floor(new Date(startDate.setUTCHours(12, 0, 0, 0)).getTime() / 1000);
-      const tallyKey = `${dateKey}_${condition}`;
-      
-      console.log("Attempting to delete tally with key:", tallyKey); // Log the tallyKey
-  
-      try {
-        await deleteBinCount(tallyKey);
+  const handleDeleteCount = async (tally) => {
+    try {
+        await deleteBinCount(tally.id, tally.submittedBy); // Use tally.id instead of creating a new key
         // Update the state to remove the deleted tally from the UI
-        setTallies(tallies.filter(tally => tally.condition !== condition));
-        setSnackbarMessage("Tally deleted successfully."); // Set success message
-        setSnackbarOpen(true); // Open Snackbar
-      } catch (error) {
+        setTallies(tallies.filter(t => t.id !== tally.id));
+        setSnackbarMessage("Tally deleted successfully.");
+        setSnackbarOpen(true);
+    } catch (error) {
         console.error("Error deleting bin count:", error);
-        setSnackbarMessage("Failed to delete tally."); // Set error message
-        setSnackbarOpen(true); // Open Snackbar
-      }
+        setSnackbarMessage(error.response?.data?.message || "Failed to delete tally.");
+        setSnackbarOpen(true);
     }
   };
 
   const handleFetchTallies = async () => {
     if (startDate && endDate) {
-      const startUnix = Math.floor(new Date(startDate.setUTCHours(12, 0, 0)).getTime() / 1000);
-      const endUnix = Math.floor(new Date(endDate.setUTCHours(23, 59, 59)).getTime() / 1000);
-      console.log("Fetching tallies from:", startUnix, "to:", endUnix); // Log the date range for debugging
-  
-      try {
-        const fetchedTallies = await fetchTalliesByDate(startUnix, endUnix); // Pass the Unix timestamps
-  
-        // Convert the fetched tallies object to an array
-        const talliesArray = Object.values(fetchedTallies); // Convert object to array
-  
-        setTallies(talliesArray); // Store fetched tallies
-  
-        // Count the total tallies
-        const tally = talliesArray.reduce((acc, tally) => 
-          acc + Object.values(tally.tallies).reduce((sum, value) => sum + value, 0), 0
-        );
-        setTotalCount(tally); // Update totalCount with the tally
-      } catch (error) {
-        console.error("Error fetching tallies:", error); // Log any errors
-        setSnackbarMessage("Failed to fetch tallies."); // Set error message
-        setSnackbarOpen(true); // Open Snackbar
-      }
+        const startUnix = Math.floor(new Date(startDate.setUTCHours(0, 0, 0, 0)).getTime() / 1000);
+        const endUnix = Math.floor(new Date(endDate.setUTCHours(23, 59, 59, 999)).getTime() / 1000);
+        console.log("Fetching tallies from:", startUnix, "to:", endUnix);
+
+        try {
+            const fetchedTallies = await fetchTalliesByDate(startUnix, endUnix);
+
+            // Add null check before processing the data
+            if (!fetchedTallies) {
+                setTallies([]);
+                setTotalCount(0);
+                setSnackbarMessage("No tallies found for the selected date range.");
+                setSnackbarOpen(true);
+                return;
+            }
+
+            // Convert the fetched tallies object to an array with IDs
+            const talliesArray = Object.entries(fetchedTallies).map(([id, tally]) => ({
+                id,
+                ...tally
+            }));
+
+            setTallies(talliesArray);
+
+            // Count the total tallies
+            const total = talliesArray.reduce((acc, tally) => {
+                if (tally.tallies) {
+                    return acc + Object.values(tally.tallies).reduce((sum, value) => sum + value, 0);
+                }
+                return acc;
+            }, 0);
+            
+            setTotalCount(total);
+        } catch (error) {
+            console.error("Error fetching tallies:", error);
+            setTallies([]); // Set empty array on error
+            setTotalCount(0); // Reset total count
+            if (error.response?.status === 404) {
+                setSnackbarMessage("No tallies found for the selected date range.");
+            } else {
+                setSnackbarMessage("Failed to fetch tallies.");
+            }
+            setSnackbarOpen(true);
+        }
     } else {
-      console.warn("No date range selected."); // Warn if no date range is selected
-      setSnackbarMessage("Please select both start and end dates."); // Set warning message
-      setSnackbarOpen(true); // Open Snackbar
+        setSnackbarMessage("Please select both start and end dates.");
+        setSnackbarOpen(true);
     }
   };
 
@@ -179,7 +193,7 @@ const BinCount = () => {
                     <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>{totalTally || 0}</Box>
                     <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>
                     <IconButton 
-                        onClick={() => handleDeleteCount(tally.condition)} // Pass the condition for deletion
+                        onClick={() => handleDeleteCount(tally)} // Pass the condition for deletion
                     >
                         <DeleteIcon />
                     </IconButton>

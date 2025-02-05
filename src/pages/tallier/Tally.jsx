@@ -12,6 +12,7 @@ import { auth } from "../../config/firebase";
 import { useNavigate, Link, useLocation } from "react-router-dom"; // Import Link for navigation and useLocation for access passed state
 import { ref, onValue } from "firebase/database";
 import { database } from "../../config/firebase"; // Adjust the path as necessary
+import { Dialog } from '@mui/material';
 
 const pricesNew = Array.from({ length: 99 }, (_, i) => (i + 1) + 0.99);
 const pricesUsed = Array.from({ length: 100 }, (_, i) => i + 1);
@@ -35,6 +36,8 @@ const Tally = () => {
   const [manualPrice, setManualPrice] = useState(""); // For inputting a new manual price
   const [manualPrices, setManualPrices] = useState([]); // To store the list of manual prices
   const [isEditing, setIsEditing] = useState(!!tallyData.id); // Set to true if editing
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [priceToDelete, setPriceToDelete] = useState(null);
 
   const [user, setUser] = useState(null); // State to hold the user
   const [snackbarMessage, setSnackbarMessage] = useState(""); // Snackbar message state
@@ -78,96 +81,116 @@ const Tally = () => {
     setManualPrice(""); // Clear the input field
   };
 
+  const handleDeleteClick = (price) => {
+    const sanitizedPrice = Math.round(price * 100);
+    if (tallies[sanitizedPrice] > 0) {
+        setPriceToDelete(price);
+        setDeleteDialogOpen(true);
+    } else {
+        // If no tallies, delete directly
+        handleManualPriceDelete(price);
+    }
+  };
+
   const handleManualPriceDelete = async (price) => {
-    const sanitizedPrice = Math.round(price * 100); // Sanitize the price for key access
+    const sanitizedPrice = Math.round(price * 100);
   
     try {
-      // Make a DELETE request to the server
-      const response = await fetch(`http://localhost:3000/api/tally/manual-prices/${sanitizedPrice}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+        const response = await fetch(`http://localhost:3000/api/tally/manual-prices/${sanitizedPrice}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                submittedBy: user.email
+            }),
+        });
   
-      if (!response.ok) {
-        throw new Error('Failed to delete the manual price');
-      }
+        if (!response.ok) {
+            throw new Error('Failed to delete the manual price');
+        }
   
-      // Update local state after successful deletion
-      setTallies((prev) => {
-        const newTallies = { ...prev };
-        delete newTallies[sanitizedPrice]; // Remove from local state
-        return newTallies;
-      });
+        setTallies((prev) => {
+            const newTallies = { ...prev };
+            delete newTallies[sanitizedPrice];
+            return newTallies;
+        });
   
-      setManualPrices((prev) => prev.filter((p) => p !== price)); // Remove from manual prices
+        setManualPrices((prev) => prev.filter((p) => p !== price));
+        setDeleteDialogOpen(false);
+        setPriceToDelete(null);
     } catch (error) {
-      console.error("Error deleting manual price:", error);
-      setSnackbarMessage("Failed to delete manual price: " + error.message);
-      setSnackbarOpen(true);
+        console.error("Error deleting manual price:", error);
+        setSnackbarMessage("Failed to delete manual price: " + error.message);
+        setSnackbarOpen(true);
     }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // Check if the bin field is empty
-    if (!bin) {
-      setSnackbarMessage("Bin # is required."); // Display an alert if bin is empty
-      setSnackbarOpen(true);
-      return; // Prevent form submission
+    // Check all required fields
+    const missingFields = [];
+    if (!bin) missingFields.push("Bin #");
+    if (!condition) missingFields.push("Condition");
+    if (!counter) missingFields.push("Counter");
+    if (!tallier) missingFields.push("Tallier");
+
+    if (missingFields.length > 0) {
+        setSnackbarMessage(`Please fill in all required fields: ${missingFields.join(", ")}`);
+        setSnackbarOpen(true);
+        return;
     }
 
     // Convert the selected date to a Unix timestamp (in seconds)
-    const dateKey = Math.floor(new Date(selectedDate.setUTCHours(12, 0, 0, 0)).getTime() / 1000); // Convert to Unix timestamp
+    const dateKey = Math.floor(new Date(selectedDate.setUTCHours(12, 0, 0, 0)).getTime() / 1000);
 
     if (!user) {
-      console.error("No user is currently logged in.");
-      setSnackbarMessage("No user is currently logged in.");
-      setSnackbarOpen(true);
-      return; // Prevent submission if no user is logged in
+        console.error("No user is currently logged in.");
+        setSnackbarMessage("No user is currently logged in.");
+        setSnackbarOpen(true);
+        return;
     }
 
     const dataToSubmit = {
-      condition,
-      counter: counter || null,
-      tallier: tallier || null,
-      tallies,
-      createdAt: dateKey, // Use dateKey for createdAt
-      submittedBy: user.email,
+        condition,
+        counter: counter || null,
+        tallier: tallier || null,
+        tallies,
+        createdAt: dateKey,
+        submittedBy: user.email,
     };
 
     try {
-      const response = await fetch(`http://localhost:3000/api/tally/bins/${bin}/tallies/${dateKey}`, { // Use date as key
-        method: 'POST', // Use POST to add or update the entry
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToSubmit), // Send the data including the date
-      });
+        const response = await fetch(`http://localhost:3000/api/tally/${bin}/tallies/${dateKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dataToSubmit),
+        });
 
-      if (!response.ok) {
-        const errorBody = await response.text(); // Get the error response body
-        console.error("Error response:", errorBody); // Log the error response
-        throw new Error('Network response was not ok');
-      }
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error("Error response:", errorBody);
+            throw new Error('Network response was not ok');
+        }
 
-      setSnackbarMessage("Data submitted successfully!");
-      setSnackbarOpen(true);
-      setBin(""); // Clear the bin input
-      setCondition("white"); // Reset condition to default
-      setCounter(""); // Clear the counter input
-      setTallier(""); // Clear the tallier input
-      setTallies({}); // Clear the tallies object
-      setManualPrices([]); // Clear manual prices
-      setSelectedDate(new Date()); // Reset the date to the current date
-      setIsEditing(false); // Set to false after submitting
+        setSnackbarMessage("Data submitted successfully!");
+        setSnackbarOpen(true);
+        setBin("");
+        setCondition("white");
+        setCounter("");
+        setTallier("");
+        setTallies({});
+        setManualPrices([]);
+        setSelectedDate(new Date());
+        setIsEditing(false);
 
     } catch (error) {
-      console.error("Error submitting data:", error);
-      setSnackbarMessage("Failed to submit data: " + error.message);
-      setSnackbarOpen(true);
+        console.error("Error submitting data:", error);
+        setSnackbarMessage("Failed to submit data: " + error.message);
+        setSnackbarOpen(true);
     }
   };
 
@@ -176,35 +199,36 @@ const Tally = () => {
   };
 
   const handleEdit = async () => {
-    const dateKey = Math.floor(selectedDate.getTime() / 1000); // Convert selected date to Unix timestamp
+    const dateKey = Math.floor(selectedDate.getTime() / 1000);
     const updatedTally = {
-      binId: bin,
-      condition,
-      counter,
-      tallier,
-      tallies,
-      createdAt: dateKey, // Use the dateKey for createdAt
+        binId: bin,
+        condition,
+        counter,
+        tallier,
+        tallies,
+        createdAt: dateKey,
+        submittedBy: user.email // Add submittedBy for authorization check
     };
 
     try {
-      const response = await fetch(`http://localhost:3000/api/tally/${dateKey}/${condition}`, { // Use date and condition
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedTally),
-      });
+        const response = await fetch(`http://localhost:3000/api/tally/${dateKey}/${condition}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedTally),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to save the tally');
-      }
+        if (!response.ok) {
+            throw new Error('Failed to save the tally');
+        }
 
-      setIsEditing(false); // Set to false after saving
-      navigate("/records");
+        setIsEditing(false);
+        navigate("/records");
     } catch (error) {
-      console.error("Error saving tally:", error);
-      setSnackbarMessage("Failed to save tally: " + error.message);
-      setSnackbarOpen(true);
+        console.error("Error saving tally:", error);
+        setSnackbarMessage("Failed to save tally: " + error.message);
+        setSnackbarOpen(true);
     }
   };
 
@@ -240,7 +264,7 @@ const Tally = () => {
           const date = tallyData.createdAt; // This should be the Unix timestamp
           const condition = tallyData.condition; // Condition from the tally data
           
-          const response = await fetch(`http://localhost:3000/api/tally/tallies/${date}/${condition}`); // Use date and condition
+          const response = await fetch(`http://localhost:3000/api/tally/${date}/${condition}`); // Use date and condition
           if (!response.ok) {
             throw new Error('Failed to fetch tally data');
           }
@@ -445,7 +469,7 @@ const Tally = () => {
 
                             {manualPrices.includes(price) && (
                                 <IconButton 
-                                    onClick={() => handleManualPriceDelete(price)} 
+                                    onClick={() => handleDeleteClick(price)} 
                                     sx={{ 
                                         borderRadius: "50%", 
                                         width: 24, 
@@ -617,6 +641,66 @@ const Tally = () => {
         onClose={handleSnackbarClose}
         message={snackbarMessage}
       />
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setPriceToDelete(null);
+        }}
+        sx={{
+          '& .MuiDialog-paper': {
+            padding: '20px',
+            borderRadius: '12px',
+            maxWidth: '300px',
+            width: '90%',
+            margin: 'auto',
+            marginTop: '100px'
+          }
+        }}
+        >
+          <Typography variant="h6" sx={{ fontSize: '1.1rem', marginBottom: 2 }}>
+            Confirm Deletion
+          </Typography>
+          <Typography sx={{ fontSize: '0.9rem', marginBottom: 3 }}>
+            Are you sure you want to delete the price ${priceToDelete?.toFixed(2)}? 
+            This price has existing tally counts.
+          </Typography>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            gap: '8px'
+          }}>
+            <Button 
+              variant="outlined" 
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setPriceToDelete(null);
+              }}
+              size="small"
+              sx={{ 
+                borderRadius: 12,
+                textTransform: 'none'
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="contained" 
+              onClick={() => handleManualPriceDelete(priceToDelete)}
+              size="small"
+              sx={{ 
+                borderRadius: 12,
+                backgroundColor: "#007AFF",
+                textTransform: 'none',
+                "&:hover": { backgroundColor: "#007AFF" }
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+      </Dialog>
     </Container>
   );
 };

@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
-import { Container, Typography, List, ListItem, ListItemText, IconButton, CircularProgress } from "@mui/material";
+import { Container, Typography, List, ListItem, ListItemText, IconButton, CircularProgress, Snackbar } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { auth } from "../../config/firebase"; // Ensure you have the correct import
-import { ref, remove } from "firebase/database";
-import { database } from "../../config/firebase"; // Adjust the path as necessary
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import { Link, useNavigate } from "react-router-dom"; // Import Link and useNavigate for navigation
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
 
 const Records = () => {
     const [tallies, setTallies] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [snackbarMessage, setSnackbarMessage] = useState(""); // Snackbar message state
+    const [snackbarOpen, setSnackbarOpen] = useState(false); // Snackbar open state
     const user = auth.currentUser; // Get the currently logged-in user
     const navigate = useNavigate(); // Initialize useNavigate
 
@@ -20,7 +18,7 @@ const Records = () => {
         if (user) {
             const fetchTallies = async () => {
                 try {
-                    const response = await fetch(`http://localhost:3000/api/records/tallies/${user.email}`);
+                    const response = await fetch(`http://localhost:3000/api/records/${user.email}`);
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
@@ -35,6 +33,8 @@ const Records = () => {
                     setTallies(tallyList);
                 } catch (error) {
                     console.error("Error fetching tallies:", error);
+                    setSnackbarMessage("Error fetching tallies: " + error.message); // Set error message
+                    setSnackbarOpen(true); // Open Snackbar
                 } finally {
                     setLoading(false);
                 }
@@ -44,24 +44,52 @@ const Records = () => {
         }
     }, [user]);
 
-    const handleDelete = (id) => {
-        const tallyRef = ref(database, `bins/${user.uid}/tallies/${id}`);
-        remove(tallyRef)
-            .then(() => {
-                toast.success("Record deleted successfully!"); // Show success notification
-            })
-            .catch((error) => {
-                console.error("Error deleting tally:", error);
+    const handleDelete = async (id) => {
+        const tallyToDelete = tallies.find(tally => tally.id === id);
+        if (!tallyToDelete) {
+            setSnackbarMessage("Tally not found.");
+            setSnackbarOpen(true);
+            return;
+        }
+    
+        try {
+            const response = await fetch(`http://localhost:3000/api/records/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    submittedBy: user.email
+                })
             });
+    
+            if (!response.ok) {
+                throw new Error('Failed to delete tally');
+            }
+    
+            setSnackbarMessage("Record deleted successfully!"); // Replace toast with Snackbar
+            setSnackbarOpen(true);
+            setTallies(prevTallies => prevTallies.filter(t => t.id !== id));
+        } catch (error) {
+            console.error("Error deleting tally:", error);
+            setSnackbarMessage("Error deleting tally: " + error.message);
+            setSnackbarOpen(true);
+        }
     };
 
     const handleEdit = (tally) => {
         navigate('/tally', { state: { tally } }); // Ensure tally includes date and condition
     };
 
+    const handleSnackbarClose = (event, reason) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+        setSnackbarOpen(false);
+    };
+
     return (
         <Container sx={{ paddingTop: 4, textAlign: "center" }}>
-            <ToastContainer />
             <IconButton 
                 component={Link}
                 to="/tally" // Path to the Tally page
@@ -113,6 +141,14 @@ const Records = () => {
                     ))}
                 </List>
             )}
+
+            {/* Snackbar for error messages */}
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={6000}
+                onClose={handleSnackbarClose}
+                message={snackbarMessage}
+            />
         </Container>
     );
 };

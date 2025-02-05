@@ -133,7 +133,16 @@ const Login = () => {
 
 // Function to fetch user role from the server
 const fetchUserRole = async (userId) => {
-  const response = await fetch(`${API_URL}/api/user-role/${userId}`); // Call the server endpoint
+  // Get the current user's email
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('No user is currently logged in');
+  }
+
+  // Add requestingUser as a query parameter
+  const response = await fetch(
+    `${API_URL}/api/user/${userId}?requestingUser=${encodeURIComponent(currentUser.email)}`
+  );
 
   // Check if the response is OK (status code 200)
   if (!response.ok) {

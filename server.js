@@ -42,30 +42,8 @@ app.post('/api/users', async (req, res) => {
     }
 });
 
-// GET endpoint to fetch user role by user ID
-app.get('/api/user-role/:userId', async (req, res) => {
-    const { userId } = req.params; // Get user ID from request parameters
-    console.log(`Fetching role for user ID: ${userId}`); // Log the user ID
-
-    try {
-        const userRef = admin.database().ref(`users/${userId}`); // Reference to the user document
-        const snapshot = await userRef.once('value'); // Fetch the user document
-
-        if (snapshot.exists()) {
-            const userData = snapshot.val();
-            res.status(200).json({ role: userData.role }); // Return the user's role
-        } else {
-            console.warn(`User not found for ID: ${userId}`); // Log warning if user not found
-            res.status(404).json({ error: 'User not found' }); // Handle case where user does not exist
-        }
-    } catch (error) {
-        console.error("Error fetching user role:", error);
-        res.status(500).json({ error: 'Internal server error' }); // Handle server errors
-    }
-});
-
 // POST endpoint to save tally data
-app.post('/api/tally/bins/:binId/tallies/:date', async (req, res) => {
+app.post('/api/tally/:binId/tallies/:date', async (req, res) => {
     const { condition, counter, tallier, submittedBy, tallies, manualPrices, createdAt } = req.body; // Ensure you have the correct fields
     const { binId, date } = req.params;
 
@@ -98,12 +76,23 @@ app.post('/api/tally/bins/:binId/tallies/:date', async (req, res) => {
 
 // DELETE endpoint to remove a manual price
 app.delete('/api/tally/manual-prices/:priceId', async (req, res) => {
-    const priceId = req.params.priceId; // Get the price ID from the URL
+    const priceId = req.params.priceId;
+    const userEmail = req.body.submittedBy; // Get the user's email
 
     try {
-        const priceRef = admin.database().ref(`manualPrices/${priceId}`); // Reference to the manual price in the database
-        await priceRef.remove(); // Remove the price from the database
+        const priceRef = admin.database().ref(`manualPrices/${priceId}`);
+        const snapshot = await priceRef.once('value');
 
+        if (!snapshot.exists()) {
+            return res.status(404).json({ message: 'Manual price not found' });
+        }
+
+        const priceData = snapshot.val();
+        if (priceData.submittedBy !== userEmail) {
+            return res.status(403).json({ message: 'You are not authorized to delete this manual price' });
+        }
+
+        await priceRef.remove();
         res.status(200).json({ message: 'Manual price deleted successfully' });
     } catch (error) {
         console.error("Error deleting manual price:", error);
@@ -112,10 +101,11 @@ app.delete('/api/tally/manual-prices/:priceId', async (req, res) => {
 });
 
 // PUT endpoint to update a tally
-app.put('/api/tally/tallies/:date/:condition', async (req, res) => {
-    const { date, condition } = req.params; // Get the date and condition from the URL
-    const tallyKey = `${date}_${condition}`; // Construct the tallyKey
-    const updatedTally = req.body; // Get the updated tally data from the request body
+app.put('/api/tally/:date/:condition', async (req, res) => {
+    const { date, condition } = req.params;
+    const tallyKey = `${date}_${condition}`;
+    const updatedTally = req.body;
+    const userEmail = req.body.submittedBy; // Get the user's email
 
     try {
         const tallyRef = admin.database().ref(`tallies/${tallyKey}`);
@@ -125,10 +115,13 @@ app.put('/api/tally/tallies/:date/:condition', async (req, res) => {
             return res.status(404).json({ message: 'Tally not found' });
         }
 
-        // Update the tally
-        await tallyRef.update(updatedTally);
+        const tallyData = snapshot.val();
+        // Check if user is authorized to update
+        if (tallyData.submittedBy !== userEmail) {
+            return res.status(403).json({ message: 'You are not authorized to update this tally' });
+        }
 
-        // Send a success response
+        await tallyRef.update(updatedTally);
         res.status(200).json({ message: 'Tally updated successfully', tally: updatedTally });
     } catch (error) {
         console.error("Error updating tally:", error);
@@ -137,7 +130,7 @@ app.put('/api/tally/tallies/:date/:condition', async (req, res) => {
 });
 
 // GET endpoint to retrieve a specific tally by date and condition for editing
-app.get('/api/tally/tallies/:date/:condition', async (req, res) => {
+app.get('/api/tally/:date/:condition', async (req, res) => {
     const { date, condition } = req.params; // Get the date and condition from the URL
     const tallyKey = `${date}_${condition}`; // Construct the tallyKey
     console.log("Fetching tally with key:", tallyKey); // Debugging log
@@ -158,8 +151,34 @@ app.get('/api/tally/tallies/:date/:condition', async (req, res) => {
     }
 });
 
+// DELETE endpoint to remove a tally by ID
+app.delete('/api/records/:id', async (req, res) => {  // Changed from /api/bin/tallies/:id
+    const { id } = req.params;
+    const userEmail = req.body.submittedBy;
+
+    try {
+        const tallyRef = admin.database().ref(`tallies/${id}`);
+        const snapshot = await tallyRef.once('value');
+
+        if (!snapshot.exists()) {
+            return res.status(404).json({ message: 'Tally not found' });
+        }
+
+        const tallyData = snapshot.val();
+        if (tallyData.submittedBy !== userEmail) {
+            return res.status(403).json({ message: 'You are not authorized to delete this tally' });
+        }
+
+        await tallyRef.remove();
+        res.status(200).json({ message: 'Tally deleted successfully' });
+    } catch (error) {
+        console.error("Error deleting tally:", error);
+        res.status(500).json({ message: 'Error deleting tally' });
+    }
+});
+
 // GET endpoint to retrieve tallies for a specific user
-app.get('/api/records/tallies/:email', async (req, res) => {
+app.get('/api/records/:email', async (req, res) => {
     const { email } = req.params;
     console.log("Fetching tallies for email:", email);
 
@@ -197,6 +216,73 @@ app.get('/api/user', async (req, res) => {
     }
 });
 
+// GET endpoint to fetch data based on start and end dates
+app.get('/api/user/date-range', async (req, res) => {
+    const { startDate, endDate } = req.query;
+    const userEmail = req.query.userEmail; // Add this parameter from frontend
+
+    try {
+        // Check user role
+        const userRef = admin.database().ref(`users/${userEmail}`);
+        const userSnapshot = await userRef.once('value');
+        
+        if (!userSnapshot.exists()) {
+            return res.status(403).json({ message: 'User not found' });
+        }
+
+        const userRole = userSnapshot.val().role;
+        if (userRole !== 'admin' && userRole !== 'accountant') {
+            return res.status(403).json({ message: 'Unauthorized access' });
+        }
+
+        const start = parseInt(startDate);
+        const end = parseInt(endDate);
+
+        const dataRef = admin.database().ref('tallies');
+        const snapshot = await dataRef
+            .orderByChild('createdAt')
+            .startAt(start)
+            .endAt(end)
+            .once('value');
+        
+        const data = snapshot.val();
+        res.status(200).json(data || {});
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        res.status(500).send("Error fetching data");
+    }
+});
+
+// GET endpoint to fetch user role by user ID
+app.get('/api/user/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const requestingUserEmail = req.query.requestingUser; // Add this parameter from frontend
+
+    try {
+        // First check if requesting user is admin
+        const adminRef = admin.database().ref(`users/${requestingUserEmail}`);
+        const adminSnapshot = await adminRef.once('value');
+        
+        if (!adminSnapshot.exists() || adminSnapshot.val().role !== 'admin') {
+            return res.status(403).json({ error: 'Only admins can view user roles' });
+        }
+
+        const userRef = admin.database().ref(`users/${userId}`);
+        const snapshot = await userRef.once('value');
+
+        if (snapshot.exists()) {
+            const userData = snapshot.val();
+            res.status(200).json({ role: userData.role });
+        } else {
+            console.warn(`User not found for ID: ${userId}`);
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (error) {
+        console.error("Error fetching user role:", error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // DELETE endpoint to remove a user by ID
 app.delete('/api/user/:userId', async (req, res) => {
     const { userId } = req.params; // Get the user ID from the URL
@@ -228,42 +314,34 @@ app.put('/api/user/:userId', async (req, res) => {
     }
 });
 
-// Fetch tallies by date range
-app.get('/api/user/bins', async (req, res) => {
-    const { startDate, endDate } = req.query; // Extract startDate and endDate from query parameters
-    console.log("Received date range:", startDate, endDate); // Log the received dates
-
-    try {
-        const startUnix = parseInt(startDate); // Convert startDate to integer
-        const endUnix = parseInt(endDate); // Convert endDate to integer
-
-        // Query to fetch tallies within the date range
-        const talliesRef = admin.database().ref('tallies').orderByChild('createdAt').startAt(startUnix).endAt(endUnix);
-        const snapshot = await talliesRef.once('value');
-        const tallies = snapshot.val();
-
-        console.log("Fetched tallies:", tallies); // Log the fetched tallies
-
-        if (tallies) {
-            res.status(200).json(tallies); // Send the tallies back to the client
-        } else {
-            res.status(404).send("No tallies found for this date range.");
-        }
-    } catch (error) {
-        console.error("Error fetching tallies:", error);
-        res.status(500).send("Error fetching tallies");
-    }
-});
-
 // DELETE endpoint to remove a bin count by ID
-app.delete('/api/user/bins/:tallyKey', async (req, res) => {
-    const { tallyKey } = req.params; // Get the bin ID from the URL
-    console.log("Received request to delete tally with key:", tallyKey); // Log the received tallyKey
+app.delete('/api/tallies/:tallyKey', async (req, res) => {
+    const { tallyKey } = req.params;
+    const { submittedBy } = req.body;
+
+    console.log("Received request to delete tally with key:", tallyKey);
 
     try {
-        const binRef = admin.database().ref(`tallies/${tallyKey}`); // Reference to the bin in the database
-        await binRef.remove(); // Remove the bin from the database
-        console.log(`Successfully deleted tally with key: ${tallyKey}`); // Log success
+        // First check if the tally exists
+        const tallyRef = admin.database().ref(`tallies/${tallyKey}`);
+        const snapshot = await tallyRef.once('value');
+
+        if (!snapshot.exists()) {
+            return res.status(404).json({ message: 'Tally not found' });
+        }
+
+        const tallyData = snapshot.val();
+
+        // Check if the submitter matches
+        if (tallyData.submittedBy !== submittedBy) {
+            return res.status(403).json({ 
+                message: 'You are not authorized to delete this tally' 
+            });
+        }
+
+        // If we get here, the user is authorized to delete
+        await tallyRef.remove();
+        console.log(`Successfully deleted tally with key: ${tallyKey}`);
 
         res.status(200).json({ message: 'Bin count deleted successfully' });
     } catch (error) {
@@ -272,7 +350,7 @@ app.delete('/api/user/bins/:tallyKey', async (req, res) => {
     }
 });
 
-// Email sending endpoint
+// POST endpoint to send CSV email
 app.post('/api/send-email', async (req, res) => {
     const { email, csvContent } = req.body; // Get email and CSV content from the request body
 

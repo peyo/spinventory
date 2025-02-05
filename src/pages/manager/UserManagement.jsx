@@ -45,41 +45,79 @@ const UserManagement = () => {
     setOpenDeleteModal(true);
   };
 
-  const handleConfirmDelete = async () => {
+const handleConfirmDelete = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        setSnackbarMessage("No user is currently logged in");
+        setSnackbarOpen(true);
+        return;
+    }
+
     try {
-      await deleteUser(userToDelete.id); // Assuming user has an id property
-      setUsers(users.filter((user) => user.id !== userToDelete.id));
-      setOpenDeleteModal(false);
+        await deleteUser(userToDelete.id, currentUser.email); // Pass the current user's email
+        setUsers(users.filter((user) => user.id !== userToDelete.id));
+        setOpenDeleteModal(false);
+        setSnackbarMessage("User deleted successfully");
+        setSnackbarOpen(true);
     } catch (error) {
-      console.error("Error deleting user:", error);
-      setSnackbarMessage("Failed to delete user."); // Set error message
-      setSnackbarOpen(true); // Open Snackbar
+        console.error("Error deleting user:", error);
+        setSnackbarMessage(error.message || "Failed to delete user"); // Use error message from backend if available
+        setSnackbarOpen(true);
     }
   };
 
-  const handleRoleChange = (userId, newRole) => {
-    // Update local state without saving to the database
-    const updatedUsers = users.map((user) => {
+// Modify handleRoleChange to only update local state
+const handleRoleChange = (userId, newRole) => {
+  // Only update the local state without making API calls
+  const updatedUsers = users.map((user) => {
       if (user.id === userId) {
-        return { ...user, role: newRole }; // Update the role based on dropdown selection
+          return { ...user, role: newRole };
       }
       return user;
-    });
-    setUsers(updatedUsers);
-  };
+  });
+  setUsers(updatedUsers);
+};
 
-  const handleSaveRoles = async () => {
-    // Save roles to the database
-    try {
+// Update handleSaveRoles to handle all role updates
+const handleSaveRoles = async () => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+      setSnackbarMessage("No user is currently logged in");
+      setSnackbarOpen(true);
+      return;
+  }
+
+  try {
+      // Save all role updates at once
       await Promise.all(users.map(user => 
-        updateUserRole(user.id, { role: user.role }) // Save the updated role
+          updateUserRole(user.id, {
+              role: user.role,
+              requestingUser: currentUser.email
+          })
       ));
-      setSnackbarMessage("User roles saved successfully!"); // Set success message
-      setSnackbarOpen(true); // Open Snackbar
-    } catch (error) {
+      
+      setSnackbarMessage("User roles saved successfully!");
+      setSnackbarOpen(true);
+  } catch (error) {
       console.error("Error saving user roles:", error);
-      setSnackbarMessage("Failed to save user roles."); // Set error message
-      setSnackbarOpen(true); // Open Snackbar
+      setSnackbarMessage("Failed to save user roles: " + error.message);
+      setSnackbarOpen(true);
+
+      // Refresh the user list to revert to the server state
+      try {
+          const fetchedUsers = await fetchUsers();
+          if (fetchedUsers && typeof fetchedUsers === 'object') {
+              const userArray = Object.keys(fetchedUsers).map(key => ({
+                  id: key,
+                  ...fetchedUsers[key]
+              }));
+              setUsers(userArray);
+          }
+      } catch (fetchError) {
+          console.error("Error fetching users:", fetchError);
+          setSnackbarMessage("Failed to revert changes. Please refresh the page.");
+          setSnackbarOpen(true);
+      }
     }
   };
 
@@ -192,27 +230,32 @@ const UserManagement = () => {
               </IconButton>
             </Box>
             <Box sx={{ flex: '40%', textAlign: 'center' }}>
-              <FormControl sx={{ minWidth: '100px' }}> {/* Set a smaller width for the FormControl */}
-                <Select
-                  value={user.role} // Set the current role as the selected value
-                  onChange={(e) => handleRoleChange(user.id, e.target.value)} // Update role on selection
+              <FormControl sx={{ width: '110px' }}> {/* Set a smaller width for the FormControl */}
+              <Select
+                  value={user.role}
+                  onChange={(e) => handleRoleChange(user.id, e.target.value)}
                   displayEmpty
                   sx={{
-                    minWidth: '100px', // Set a smaller minimum width for the dropdown
-                    height: '36px', // Set a smaller height for the dropdown
-                    padding: '0 10px', // Adjust padding to make it more compact
-                    textAlign: 'center', // Center the text in the dropdown
-                    backgroundColor: "rgba(118, 118, 128, 0.12)",
-                    borderRadius: 12, // Rounded corners
-                    "& .MuiOutlinedInput-root": { 
+                      height: '36px',
+                      padding: '0 10px',
+                      textAlign: 'center',
+                      backgroundColor: "rgba(118, 118, 128, 0.12)",
                       borderRadius: 12,
-                    },
+                      "& .MuiOutlinedInput-root": { 
+                          borderRadius: 12,
+                      },
+                      "& .MuiSelect-select": {  // Add styles for the selected text
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          paddingRight: '24px' // Make room for the dropdown arrow
+                      }
                   }}
-                >
+              >
                   <MenuItem value="admin">Admin</MenuItem>
                   <MenuItem value="accountant">Accountant</MenuItem>
                   <MenuItem value="tallier">Tallier</MenuItem>
-                </Select>
+              </Select>
               </FormControl>
             </Box>
           </Box>
