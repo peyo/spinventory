@@ -43,7 +43,7 @@ const ForgotPassword = () => {
 
       {/* Email Field */}
       <TextField 
-        label="Enter your email" 
+        label="Email" 
         fullWidth 
         margin="normal" 
         variant="outlined"

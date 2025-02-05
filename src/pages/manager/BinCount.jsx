@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom"; // Import Link for navigation
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Import the back arrow icon
-import { Container, Typography, Button, Box, IconButton, Snackbar } from "@mui/material";
+import { Dialog, Container, Typography, Button, Box, IconButton, Snackbar } from "@mui/material";
 import { deleteBinCount, fetchTalliesByDate } from "../../utils/managerApi"; // Import your API functions
 import DatePicker from "react-datepicker"; // Import React Datepicker
 import "react-datepicker/dist/react-datepicker.css"; // Import CSS for styling
@@ -12,21 +12,29 @@ const BinCount = () => {
   const [endDate, setEndDate] = useState(null); // Initialize end date
   const [tallies, setTallies] = useState([]); // State for tallies
   const [totalCount, setTotalCount] = useState(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tallyToDelete, setTallyToDelete] = useState(null);
   const [snackbarMessage, setSnackbarMessage] = useState(""); // State for Snackbar message
   const [snackbarOpen, setSnackbarOpen] = useState(false); // State for Snackbar open/close
 
+  const handleDeleteClick = (tally) => {
+    setTallyToDelete(tally);
+    setDeleteDialogOpen(true);
+  };
+
   const handleDeleteCount = async (tally) => {
-    try {
-        await deleteBinCount(tally.id, tally.submittedBy); // Use tally.id instead of creating a new key
-        // Update the state to remove the deleted tally from the UI
-        setTallies(tallies.filter(t => t.id !== tally.id));
-        setSnackbarMessage("Tally deleted successfully.");
-        setSnackbarOpen(true);
-    } catch (error) {
-        console.error("Error deleting bin count:", error);
-        setSnackbarMessage(error.response?.data?.message || "Failed to delete tally.");
-        setSnackbarOpen(true);
-    }
+      try {
+          await deleteBinCount(tally.id, tally.submittedBy);
+          setTallies(tallies.filter(t => t.id !== tally.id));
+          setSnackbarMessage("Tally deleted successfully.");
+          setSnackbarOpen(true);
+          setDeleteDialogOpen(false);
+          setTallyToDelete(null);
+      } catch (error) {
+          console.error("Error deleting bin count:", error);
+          setSnackbarMessage(error.response?.data?.message || "Failed to delete tally.");
+          setSnackbarOpen(true);
+      }
   };
 
   const handleFetchTallies = async () => {
@@ -193,7 +201,7 @@ const BinCount = () => {
                     <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>{totalTally || 0}</Box>
                     <Box sx={{ flex: '1 1 100px', textAlign: 'left' }}>
                     <IconButton 
-                        onClick={() => handleDeleteCount(tally)} // Pass the condition for deletion
+                        onClick={() => handleDeleteClick(tally)} // Pass the condition for deletion
                     >
                         <DeleteIcon />
                     </IconButton>
@@ -211,6 +219,64 @@ const BinCount = () => {
         onClose={handleSnackbarClose}
         message={snackbarMessage}
       />
+      {/* Confirmation Dialog */}
+    <Dialog
+        open={deleteDialogOpen}
+        onClose={() => {
+            setDeleteDialogOpen(false);
+            setTallyToDelete(null);
+        }}
+        sx={{
+            '& .MuiDialog-paper': {
+                padding: '20px',
+                borderRadius: '12px',
+                maxWidth: '300px',
+                width: '90%',
+                margin: 'auto',
+                marginTop: '100px'
+            }
+        }}
+    >
+        <Typography variant="h6" sx={{ fontSize: '1.1rem', marginBottom: 2 }}>
+            Confirm Deletion
+        </Typography>
+        <Typography sx={{ fontSize: '0.9rem', marginBottom: 3 }}>
+            Are you sure you want to delete this tally for Bin #{tallyToDelete?.binId}?
+        </Typography>
+        <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            gap: '8px'
+        }}>
+            <Button 
+                variant="outlined" 
+                onClick={() => {
+                    setDeleteDialogOpen(false);
+                    setTallyToDelete(null);
+                }}
+                size="small"
+                sx={{ 
+                    borderRadius: 12,
+                    textTransform: 'none'
+                }}
+            >
+                Cancel
+            </Button>
+            <Button 
+                variant="contained" 
+                onClick={() => handleDeleteCount(tallyToDelete)}
+                size="small"
+                sx={{ 
+                    borderRadius: 12,
+                    backgroundColor: "#007AFF",
+                    textTransform: 'none',
+                    "&:hover": { backgroundColor: "#007AFF" }
+                }}
+            >
+                Delete
+            </Button>
+        </div>
+    </Dialog>
     </Container>
   );
 };

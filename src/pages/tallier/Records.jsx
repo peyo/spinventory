@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Container, Typography, List, ListItem, ListItemText, IconButton, CircularProgress, Snackbar } from "@mui/material";
+import { Dialog, Container, Typography, List, ListItem, ListItemText, IconButton, CircularProgress, Snackbar, Button } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import { auth } from "../../config/firebase"; // Ensure you have the correct import
@@ -9,6 +9,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
 const Records = () => {
     const [tallies, setTallies] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [tallyToDelete, setTallyToDelete] = useState(null);
     const [snackbarMessage, setSnackbarMessage] = useState(""); // Snackbar message state
     const [snackbarOpen, setSnackbarOpen] = useState(false); // Snackbar open state
     const user = auth.currentUser; // Get the currently logged-in user
@@ -44,14 +46,12 @@ const Records = () => {
         }
     }, [user]);
 
-    const handleDelete = async (id) => {
-        const tallyToDelete = tallies.find(tally => tally.id === id);
-        if (!tallyToDelete) {
-            setSnackbarMessage("Tally not found.");
-            setSnackbarOpen(true);
-            return;
-        }
+    const handleDeleteClick = (tally) => {
+        setTallyToDelete(tally);
+        setDeleteDialogOpen(true);
+    };
     
+    const handleDelete = async (id) => {
         try {
             const response = await fetch(`http://localhost:3000/api/records/${id}`, {
                 method: 'DELETE',
@@ -67,15 +67,17 @@ const Records = () => {
                 throw new Error('Failed to delete tally');
             }
     
-            setSnackbarMessage("Record deleted successfully!"); // Replace toast with Snackbar
+            setSnackbarMessage("Record deleted successfully!");
             setSnackbarOpen(true);
             setTallies(prevTallies => prevTallies.filter(t => t.id !== id));
+            setDeleteDialogOpen(false);
+            setTallyToDelete(null);
         } catch (error) {
             console.error("Error deleting tally:", error);
             setSnackbarMessage("Error deleting tally: " + error.message);
             setSnackbarOpen(true);
         }
-    };
+    }
 
     const handleEdit = (tally) => {
         navigate('/tally', { state: { tally } }); // Ensure tally includes date and condition
@@ -133,7 +135,7 @@ const Records = () => {
                                 <IconButton onClick={() => handleEdit(tally)}>
                                     <EditIcon />
                                 </IconButton>
-                                <IconButton onClick={() => handleDelete(tally.id)}>
+                                <IconButton onClick={() => handleDeleteClick(tally)}>
                                     <DeleteIcon />
                                 </IconButton>
                             </div>
@@ -149,6 +151,64 @@ const Records = () => {
                 onClose={handleSnackbarClose}
                 message={snackbarMessage}
             />
+            {/* Confirmation Dialog */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={() => {
+                    setDeleteDialogOpen(false);
+                    setTallyToDelete(null);
+                }}
+                sx={{
+                    '& .MuiDialog-paper': {
+                        padding: '20px',
+                        borderRadius: '12px',
+                        maxWidth: '300px',
+                        width: '90%',
+                        margin: 'auto',
+                        marginTop: '100px'
+                    }
+                }}
+            >
+                <Typography variant="h6" sx={{ fontSize: '1.1rem', marginBottom: 2 }}>
+                    Confirm Deletion
+                </Typography>
+                <Typography sx={{ fontSize: '0.9rem', marginBottom: 3 }}>
+                    Are you sure you want to delete this tally for Bin #{tallyToDelete?.binId}?
+                </Typography>
+                <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'flex-end',
+                    gap: '8px'
+                }}>
+                    <Button 
+                        variant="outlined" 
+                        onClick={() => {
+                            setDeleteDialogOpen(false);
+                            setTallyToDelete(null);
+                        }}
+                        size="small"
+                        sx={{ 
+                            borderRadius: 12,
+                            textTransform: 'none'
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button 
+                        variant="contained" 
+                        onClick={() => handleDelete(tallyToDelete?.id)}
+                        size="small"
+                        sx={{ 
+                            borderRadius: 12,
+                            backgroundColor: "#007AFF",
+                            textTransform: 'none',
+                            "&:hover": { backgroundColor: "#007AFF" }
+                        }}
+                    >
+                        Delete
+                    </Button>
+                </div>
+            </Dialog>
         </Container>
     );
 };
