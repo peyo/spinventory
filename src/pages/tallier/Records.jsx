@@ -5,6 +5,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import { auth } from "../../config/firebase"; // Ensure you have the correct import
 import { Link, useNavigate } from "react-router-dom"; // Import Link and useNavigate for navigation
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
+import API_URL from "../../config/config"; // Import the API URL
 
 const Records = () => {
     const [tallies, setTallies] = useState([]);
@@ -20,7 +21,7 @@ const Records = () => {
         if (user) {
             const fetchTallies = async () => {
                 try {
-                    const response = await fetch(`http://localhost:3000/api/records/${user.email}`);
+                    const response = await fetch(`${API_URL}/api/records/${user.email}`);
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
@@ -33,10 +34,16 @@ const Records = () => {
                     }));
     
                     setTallies(tallyList);
+                    
+                    // Show message if no tallies found
+                    if (tallyList.length === 0) {
+                        setSnackbarMessage("No tallies found.");
+                        setSnackbarOpen(true);
+                    }
                 } catch (error) {
                     console.error("Error fetching tallies:", error);
-                    setSnackbarMessage("Error fetching tallies: " + error.message); // Set error message
-                    setSnackbarOpen(true); // Open Snackbar
+                    setSnackbarMessage("Error fetching tallies: " + error.message);
+                    setSnackbarOpen(true);
                 } finally {
                     setLoading(false);
                 }
@@ -53,7 +60,7 @@ const Records = () => {
     
     const handleDelete = async (id) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/records/${id}`, {
+            const response = await fetch(`${API_URL}/api/records/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',

@@ -13,6 +13,7 @@ import { useNavigate, Link, useLocation } from "react-router-dom"; // Import Lin
 import { ref, onValue } from "firebase/database";
 import { database } from "../../config/firebase"; // Adjust the path as necessary
 import { Dialog } from '@mui/material';
+import API_URL from "../../config/config"; // Import the API URL
 
 const pricesNew = Array.from({ length: 99 }, (_, i) => (i + 1) + 0.99);
 const pricesUsed = Array.from({ length: 100 }, (_, i) => i + 1);
@@ -96,7 +97,7 @@ const Tally = () => {
     const sanitizedPrice = Math.round(price * 100);
   
     try {
-        const response = await fetch(`http://localhost:3000/api/tally/manual-prices/${sanitizedPrice}`, {
+        const response = await fetch(`${API_URL}/api/tally/manual-prices/${sanitizedPrice}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
@@ -162,7 +163,7 @@ const Tally = () => {
     };
 
     try {
-        const response = await fetch(`http://localhost:3000/api/tally/${bin}/tallies/${dateKey}`, {
+        const response = await fetch(`${API_URL}/api/tally/${bin}/tallies/${dateKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -211,7 +212,7 @@ const Tally = () => {
     };
 
     try {
-        const response = await fetch(`http://localhost:3000/api/tally/${dateKey}/${condition}`, {
+        const response = await fetch(`${API_URL}/api/tally/${dateKey}/${condition}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -264,7 +265,7 @@ const Tally = () => {
           const date = tallyData.createdAt; // This should be the Unix timestamp
           const condition = tallyData.condition; // Condition from the tally data
           
-          const response = await fetch(`http://localhost:3000/api/tally/${date}/${condition}`); // Use date and condition
+          const response = await fetch(`${API_URL}/api/tally/${date}/${condition}`); // Use date and condition
           if (!response.ok) {
             throw new Error('Failed to fetch tally data');
           }

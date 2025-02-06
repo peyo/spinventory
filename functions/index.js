@@ -1,28 +1,15 @@
+import { onRequest } from 'firebase-functions/v2/https';
 import express from 'express';
 import admin from 'firebase-admin';
-import cors from 'cors';
-import fs from 'fs';
-import path from 'path';
 import nodemailer from 'nodemailer';
 
 const app = express();
-const port = 3000;
 
-// Middleware to parse JSON bodies
+// Initialize Firebase Admin
+admin.initializeApp();
+
+// Add express.json() before CORS middleware
 app.use(express.json());
-app.use(cors({
-    origin: 'http://localhost:5173', // Adjust this to your React app's URL
-}));
-
-// Load service account key
-const __dirname = path.dirname(new URL(import.meta.url).pathname); // Get the directory name
-const serviceAccountPath = path.join(__dirname, 'config', 'serviceAccountKey.json');
-const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount), // Use the service account credentials
-  databaseURL: "https://spinventory-25db0-default-rtdb.firebaseio.com/"
-});
 
 // Update CORS middleware with more headers
 app.use((req, res, next) => {
@@ -449,6 +436,8 @@ app.get('/api/data', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+// Export the api to Firebase Cloud Functions
+export const api = onRequest({
+    cors: [/localhost/, /\.web\.app$/],
+    maxInstances: 10
+}, app);
