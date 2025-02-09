@@ -217,15 +217,21 @@ app.get('/api/user', async (req, res) => {
 // GET endpoint to fetch data based on start and end dates
 app.get('/api/user/date-range', async (req, res) => {
     const { startDate, endDate } = req.query;
-    const userEmail = req.query.userEmail; // Add this parameter from frontend
+    const userEmail = req.query.userEmail;
 
     try {
-        // Check user role
-        const userRef = admin.database().ref(`users/${userEmail}`);
+        // First verify the requesting user exists in Auth
+        const userRecord = await admin.auth().getUserByEmail(userEmail);
+        if (!userRecord) {
+            return res.status(403).json({ message: 'User not found' });
+        }
+
+        // Get user role from Realtime Database using the UID
+        const userRef = admin.database().ref(`users/${userRecord.uid}`);
         const userSnapshot = await userRef.once('value');
         
         if (!userSnapshot.exists()) {
-            return res.status(403).json({ message: 'User not found' });
+            return res.status(403).json({ message: 'User not found in database' });
         }
 
         const userRole = userSnapshot.val().role;
@@ -243,11 +249,14 @@ app.get('/api/user/date-range', async (req, res) => {
             .endAt(end)
             .once('value');
         
-        const data = snapshot.val();
-        res.status(200).json(data || {});
+        // Always return an object, even if empty
+        res.status(200).json(snapshot.val() || {});
     } catch (error) {
         console.error("Error fetching data:", error);
-        res.status(500).send("Error fetching data");
+        res.status(500).json({ 
+            message: 'Error fetching data',
+            details: error.message 
+        });
     }
 });
 
