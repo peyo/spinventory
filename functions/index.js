@@ -45,28 +45,25 @@ app.post('/api/users', async (req, res) => {
 });
 
 // POST endpoint to save tally data
-app.post('/api/tally/:binId/tallies/:date', async (req, res) => {
-    const { condition, counter, tallier, submittedBy, tallies, manualPrices, createdAt } = req.body; // Ensure you have the correct fields
-    const { binId, date } = req.params;
+app.post('/api/tally/:tallyKey', async (req, res) => {
+    const { condition, counter, tallier, submittedBy, tallies, createdAt, binId } = req.body;
+    const { tallyKey } = req.params;
 
     // Validate the incoming data
     if (!binId || !condition || !counter || !tallier || !submittedBy || !tallies || !createdAt) {
         return res.status(400).send("All fields are required");
     }
 
-    const tallyKey = `${date}_${condition}`; // Keep the same key format
-
     try {
-        const newTallyRef = admin.database().ref(`tallies/${tallyKey}`); // Save directly under tallies
+        const newTallyRef = admin.database().ref(`tallies/${tallyKey}`);
         await newTallyRef.set({
             binId,
             condition,
             counter,
-            createdAt, // Use createdAt from the request body
+            createdAt,
             submittedBy,
             tallier,
             tallies,
-            manualPrices: manualPrices || [], // Save manual prices
         });
 
         res.status(201).send({ message: 'Tally data saved successfully' });
@@ -103,11 +100,10 @@ app.delete('/api/tally/manual-prices/:priceId', async (req, res) => {
 });
 
 // PUT endpoint to update a tally
-app.put('/api/tally/:date/:condition', async (req, res) => {
-    const { date, condition } = req.params;
-    const tallyKey = `${date}_${condition}`;
+app.put('/api/tally/:tallyKey', async (req, res) => {
+    const { tallyKey } = req.params;
     const updatedTally = req.body;
-    const userEmail = req.body.submittedBy; // Get the user's email
+    const userEmail = req.body.submittedBy;
 
     try {
         const tallyRef = admin.database().ref(`tallies/${tallyKey}`);
@@ -118,7 +114,6 @@ app.put('/api/tally/:date/:condition', async (req, res) => {
         }
 
         const tallyData = snapshot.val();
-        // Check if user is authorized to update
         if (tallyData.submittedBy !== userEmail) {
             return res.status(403).json({ message: 'You are not authorized to update this tally' });
         }
@@ -131,25 +126,23 @@ app.put('/api/tally/:date/:condition', async (req, res) => {
     }
 });
 
-// GET endpoint to retrieve a specific tally by date and condition for editing
-app.get('/api/tally/:date/:condition', async (req, res) => {
-    const { date, condition } = req.params; // Get the date and condition from the URL
-    const tallyKey = `${date}_${condition}`; // Construct the tallyKey
-    console.log("Fetching tally with key:", tallyKey); // Debugging log
+// GET endpoint to retrieve a specific tally
+app.get('/api/tally/:tallyKey', async (req, res) => {
+    const { tallyKey } = req.params;
 
     try {
         const tallyRef = admin.database().ref(`tallies/${tallyKey}`);
         const snapshot = await tallyRef.once('value');
+        const tallyData = snapshot.val();
 
-        if (!snapshot.exists()) {
-            return res.status(404).json({ message: 'Tally not found' });
+        if (!tallyData) {
+            return res.status(404).send("Tally not found");
         }
 
-        // Send the tally data back to the client
-        res.status(200).json(snapshot.val());
+        res.status(200).json(tallyData);
     } catch (error) {
-        console.error("Error retrieving tally:", error);
-        res.status(500).json({ message: 'Error retrieving tally' });
+        console.error("Error fetching tally data:", error);
+        res.status(500).send("Error fetching tally data");
     }
 });
 

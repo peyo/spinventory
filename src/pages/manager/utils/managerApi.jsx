@@ -1,6 +1,6 @@
 import axios from "axios";
-import API_URL from "../config/config"; // Import the API URL
-import { auth } from "../config/firebase"; // Ensure this path is correct
+import API_URL from "../../../config/config"; // Import the API URL
+import { auth } from "../../../config/firebase"; // Ensure this path is correct
 
 // Fetch all users
 export const fetchUsers = async () => {
@@ -34,20 +34,37 @@ export const updateUserRole = async (userId, updatedUser) => {
 
 // Fetch tallies by date range
 export const fetchTalliesByDate = async (startDate, endDate) => {
-  try {
-      const user = auth.currentUser; // Get current user
-      const response = await axios.get(`${API_URL}/api/user/date-range`, {
-          params: {
-              startDate: startDate,
-              endDate: endDate,
-              userEmail: user.email // Add user email for role check
-          }
-      });
-      return response.data || {};
-  } catch (error) {
-      console.error("Error fetching tallies:", error);
-      return {};
-  }
+    try {
+        const user = auth.currentUser; // Get current user
+        if (!user) {
+            throw new Error('No user is currently logged in');
+        }
+
+        const response = await axios.get(`${API_URL}/api/user/date-range`, {
+            params: {
+                startDate: startDate,
+                endDate: endDate,
+                userEmail: user.email
+            }
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching tallies:", error);
+        if (error.response) {
+            // The request was made and the server responded with a status code
+            // that falls out of the range of 2xx
+            console.error("Server Error Data:", error.response.data);
+            console.error("Server Error Status:", error.response.status);
+            throw new Error(error.response.data.message || 'Failed to fetch tallies');
+        } else if (error.request) {
+            // The request was made but no response was received
+            throw new Error('No response received from server');
+        } else {
+            // Something happened in setting up the request that triggered an Error
+            throw new Error(error.message || 'Error setting up the request');
+        }
+    }
 };
 
 // DELETE endpoint to remove a bin count by ID

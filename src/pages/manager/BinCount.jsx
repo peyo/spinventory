@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom"; // Import Link for navigation
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'; // Import the back arrow icon
 import { Dialog, Container, Typography, Button, Box, IconButton, Snackbar } from "@mui/material";
-import { deleteBinCount, fetchTalliesByDate } from "../../utils/managerApi"; // Import your API functions
+import { deleteBinCount, fetchTalliesByDate } from "./utils/managerApi"; // Import your ta functions
 import DatePicker from "react-datepicker"; // Import React Datepicker
 import "react-datepicker/dist/react-datepicker.css"; // Import CSS for styling
 import DeleteIcon from '@mui/icons-material/Delete'; // Import the Delete icon
@@ -11,7 +11,7 @@ const BinCount = () => {
   const [startDate, setStartDate] = useState(null); // Initialize start date
   const [endDate, setEndDate] = useState(null); // Initialize end date
   const [tallies, setTallies] = useState([]); // State for tallies
-  const [totalCount, setTotalCount] = useState(0);
+  const [totalBins, setTotalBins] = useState(0); // Changed from totalCount to totalBins
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tallyToDelete, setTallyToDelete] = useState(null);
   const [snackbarMessage, setSnackbarMessage] = useState(""); // State for Snackbar message
@@ -49,7 +49,7 @@ const BinCount = () => {
             // Add null check before processing the data
             if (!fetchedTallies) {
                 setTallies([]);
-                setTotalCount(0);
+                setTotalBins(0);
                 setSnackbarMessage("No tallies found for the selected date range.");
                 setSnackbarOpen(true);
                 return;
@@ -63,19 +63,14 @@ const BinCount = () => {
 
             setTallies(talliesArray);
 
-            // Count the total tallies
-            const total = talliesArray.reduce((acc, tally) => {
-                if (tally.tallies) {
-                    return acc + Object.values(tally.tallies).reduce((sum, value) => sum + value, 0);
-                }
-                return acc;
-            }, 0);
+            // Count unique bins
+            const uniqueBins = new Set(talliesArray.map(tally => tally.binId)).size;
+            setTotalBins(uniqueBins);
             
-            setTotalCount(total);
         } catch (error) {
             console.error("Error fetching tallies:", error);
             setTallies([]); // Set empty array on error
-            setTotalCount(0); // Reset total count
+            setTotalBins(0); // Reset total bins
             if (error.response?.status === 404) {
                 setSnackbarMessage("No tallies found for the selected date range.");
             } else {
@@ -172,9 +167,9 @@ const BinCount = () => {
         Fetch Tallies
       </Button>
 
-      {totalCount > 0 && ( // Only show total count if it's greater than 0
+      {totalBins > 0 && ( // Changed from totalCount to totalBins
         <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium', color: "#000", marginBottom: 3 }}>
-          Total Tallies: {totalCount}
+          Total Bins: {totalBins}
         </Typography>
       )}
 

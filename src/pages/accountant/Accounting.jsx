@@ -3,11 +3,11 @@ import { Container, Typography, Button, Box, Snackbar, TextField, IconButton } f
 import DatePicker from "react-datepicker"; // Import React Datepicker
 import "react-datepicker/dist/react-datepicker.css"; // Import CSS for styling
 import { Parser } from '@json2csv/plainjs'; // Import the Parser class
-import API_URL from "../../config/config"; // Import the API URL
 import LogoutIcon from '@mui/icons-material/Logout'; // Import the logout icon
 import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
 import { signOut } from "firebase/auth"; // Import signOut from Firebase
 import { auth } from "../../config/firebase"; // Ensure this path is correct
+import { fetchAccountingData, sendCSVEmail } from "./utils/accountApi";
 
 const Accounting = () => {
   const [startDate, setStartDate] = useState(null);
@@ -38,9 +38,8 @@ const Accounting = () => {
       console.log("Start Timestamp:", startUnix);
       console.log("End Timestamp:", endUnix);
 
-      // Fetch data from the database based on selected Unix timestamps
-      const response = await fetch(`${API_URL}/api/data?startDate=${startUnix}&endDate=${endUnix}`);
-      const data = await response.json();
+      // Fetch data using the new API function
+      const data = await fetchAccountingData(startUnix, endUnix);
       console.log("Fetched data:", data); // Log the fetched data
 
       // Convert the object to an array
@@ -88,24 +87,12 @@ const Accounting = () => {
         }
       });
 
-      // Convert JSON data to CSV using the Parser
+      // Convert JSON data to CSV
       const parser = new Parser(); // Create a new Parser instance
       const csv = parser.parse(formattedData); // Use the parse method to convert data to CSV
 
-      // Send email with CSV attachment
-      const emailResponse = await fetch(`${API_URL}/api/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, csvContent: csv }), // Send email and CSV content
-      });
-
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text(); // Get the response text
-        console.error('Error response:', errorText); // Log the error response
-        throw new Error('Failed to send email');
-      }
+      // Send email using the new API function
+      await sendCSVEmail(email, csv);
 
       setSnackbarMessage("CSV sent successfully!");
       setSnackbarOpen(true);

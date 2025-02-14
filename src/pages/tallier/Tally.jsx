@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Container, TextField, Typography, Button, IconButton, Select, MenuItem, Snackbar } from "@mui/material";
+import { Container, TextField, Typography, Button, IconButton, Select, MenuItem, Snackbar, Dialog } from "@mui/material";
 import DatePicker from "react-datepicker"; // Import React Datepicker
 import "react-datepicker/dist/react-datepicker.css"; // Import CSS for styling
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
@@ -12,8 +12,7 @@ import { auth } from "../../config/firebase";
 import { useNavigate, Link, useLocation } from "react-router-dom"; // Import Link for navigation and useLocation for access passed state
 import { ref, onValue } from "firebase/database";
 import { database } from "../../config/firebase"; // Adjust the path as necessary
-import { Dialog } from '@mui/material';
-import API_URL from "../../config/config"; // Import the API URL
+import { submitTallyData, updateTally, deleteManualPrice, fetchTallyData } from "./utils/tallierApi";
 
 const pricesNew = Array.from({ length: 99 }, (_, i) => (i + 1) + 0.99);
 const pricesUsed = Array.from({ length: 100 }, (_, i) => i + 1);
@@ -31,6 +30,10 @@ const Tally = () => {
   const [counter, setCounter] = useState(tallyData.counter || "");
   const [tallier, setTallier] = useState(tallyData.tallier || "");
   const [tallies, setTallies] = useState(tallyData.tallies || {});
+  const [whiteTallies, setWhiteTallies] = useState({});
+  const [orangeTallies, setOrangeTallies] = useState({});
+  const [whiteManualPrices, setWhiteManualPrices] = useState([]); // New state for white manual prices
+  const [orangeManualPrices, setOrangeManualPrices] = useState([]); // New state for orange manual prices
   const [selectedDate, setSelectedDate] = useState(
     tallyData.createdAt ? new Date(tallyData.createdAt * 1000) : new Date()
   ); // Convert createdAt to Date or default to the current date
@@ -56,13 +59,24 @@ const Tally = () => {
   };
 
   const handleTallyChange = (price, delta) => {
+    const sanitizedPrice = Math.round(price * 100); // Sanitize for key access
+    
+    // Update the main tallies state
     setTallies((prevTallies) => {
-      const sanitizedPrice = Math.round(price * 100); // Sanitize for key access
       const newCount = Math.max((prevTallies[sanitizedPrice] || 0) + delta, 0);
-      return {
+      const newTallies = {
         ...prevTallies,
         [sanitizedPrice]: newCount,
       };
+      
+      // Also update the condition-specific state
+      if (condition === "white") {
+        setWhiteTallies(newTallies);
+      } else {
+        setOrangeTallies(newTallies);
+      }
+      
+      return newTallies;
     });
   };
 
@@ -72,13 +86,27 @@ const Tally = () => {
     if (isNaN(priceValue) || priceValue <= 0) {
       setSnackbarMessage("Please enter a valid positive number for the manual price.");
       setSnackbarOpen(true);
-      return; // Ensure the price is a valid positive number
+      return;
     }
-    const sanitizedPrice = Math.round(priceValue * 100); // Sanitize for key access (as an integer)
+    const sanitizedPrice = Math.round(priceValue * 100);
     
     // Add the manual price to tallies
-    setTallies((prev) => ({ ...prev, [sanitizedPrice]: 0 })); // Initialize count for this manual price
-    setManualPrices((prev) => [...prev, priceValue]); // Keep track of manual prices for display
+    const newTallies = { ...tallies, [sanitizedPrice]: 0 };
+    setTallies(newTallies);
+    
+    // Update the condition-specific state
+    if (condition === "white") {
+      setWhiteTallies(newTallies);
+      const newManualPrices = [...whiteManualPrices, priceValue];
+      setWhiteManualPrices(newManualPrices);
+      setManualPrices(newManualPrices); // Update current manual prices
+    } else {
+      setOrangeTallies(newTallies);
+      const newManualPrices = [...orangeManualPrices, priceValue];
+      setOrangeManualPrices(newManualPrices);
+      setManualPrices(newManualPrices); // Update current manual prices
+    }
+    
     setManualPrice(""); // Clear the input field
   };
 
@@ -97,27 +125,24 @@ const Tally = () => {
     const sanitizedPrice = Math.round(price * 100);
   
     try {
-        const response = await fetch(`${API_URL}/api/tally/manual-prices/${sanitizedPrice}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                submittedBy: user.email
-            }),
-        });
-  
-        if (!response.ok) {
-            throw new Error('Failed to delete the manual price');
-        }
+        await deleteManualPrice(sanitizedPrice, user.email);
   
         setTallies((prev) => {
             const newTallies = { ...prev };
             delete newTallies[sanitizedPrice];
+            
+            // Update the condition-specific state
+            if (condition === "white") {
+                setWhiteTallies(newTallies);
+                setWhiteManualPrices(prev => prev.filter(p => p !== price)); // Update white manual prices
+            } else {
+                setOrangeTallies(newTallies);
+                setOrangeManualPrices(prev => prev.filter(p => p !== price)); // Update orange manual prices
+            }
+            
             return newTallies;
         });
   
-        setManualPrices((prev) => prev.filter((p) => p !== price));
         setDeleteDialogOpen(false);
         setPriceToDelete(null);
     } catch (error) {
@@ -125,6 +150,21 @@ const Tally = () => {
         setSnackbarMessage("Failed to delete manual price: " + error.message);
         setSnackbarOpen(true);
     }
+  };
+
+  const handleReset = () => {
+    // Clear all form fields
+    setBin("");
+    setCounter("");
+    setTallier("");
+    setSelectedDate(new Date());
+    
+    // Clear all tallies and manual prices
+    setTallies({});
+    setWhiteTallies({});
+    setOrangeTallies({});
+    setWhiteManualPrices([]); 
+    setOrangeManualPrices([]); 
   };
 
   const handleSubmit = async (event) => {
@@ -153,39 +193,41 @@ const Tally = () => {
         return;
     }
 
+    // Only use the current condition's tallies
+    const currentTallies = condition === "white" ? whiteTallies : orangeTallies;
+
     const dataToSubmit = {
+        binId: bin,
         condition,
         counter: counter || null,
         tallier: tallier || null,
-        tallies,
+        tallies: currentTallies,
         createdAt: dateKey,
         submittedBy: user.email,
     };
 
     try {
-        const response = await fetch(`${API_URL}/api/tally/${bin}/tallies/${dateKey}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(dataToSubmit),
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("Error response:", errorBody);
-            throw new Error('Network response was not ok');
-        }
+        await submitTallyData(dateKey, bin, dataToSubmit);
 
         setSnackbarMessage("Data submitted successfully!");
         setSnackbarOpen(true);
-        setBin("");
-        setCondition("white");
-        setCounter("");
-        setTallier("");
-        setTallies({});
-        setManualPrices([]);
-        setSelectedDate(new Date());
+        
+        if (condition === "white") {
+            setWhiteTallies({});
+            setWhiteManualPrices([]);
+            setTallies(orangeTallies);
+            if (condition === "white") {
+                setTallies({});
+            }
+        } else {
+            setOrangeTallies({});
+            setOrangeManualPrices([]);
+            setTallies(whiteTallies);
+            if (condition === "orange") {
+                setTallies({});
+            }
+        }
+
         setIsEditing(false);
 
     } catch (error) {
@@ -193,10 +235,6 @@ const Tally = () => {
         setSnackbarMessage("Failed to submit data: " + error.message);
         setSnackbarOpen(true);
     }
-  };
-
-  const handleReset = () => {
-    setTallies({});
   };
 
   const handleEdit = async () => {
@@ -208,22 +246,11 @@ const Tally = () => {
         tallier,
         tallies,
         createdAt: dateKey,
-        submittedBy: user.email // Add submittedBy for authorization check
+        submittedBy: user.email
     };
 
     try {
-        const response = await fetch(`${API_URL}/api/tally/${dateKey}/${condition}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updatedTally),
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to save the tally');
-        }
-
+        await updateTally(dateKey, bin, condition, updatedTally);
         setIsEditing(false);
         navigate("/records");
     } catch (error) {
@@ -259,42 +286,87 @@ const Tally = () => {
 
   // Fetch tally data when editing
   useEffect(() => {
-    if (isEditing) {
-      const fetchTallyData = async () => {
+    if (isEditing && tallyData) {
+      const fetchTallyDataForEdit = async () => {
         try {
-          const date = tallyData.createdAt; // This should be the Unix timestamp
-          const condition = tallyData.condition; // Condition from the tally data
-          
-          const response = await fetch(`${API_URL}/api/tally/${date}/${condition}`); // Use date and condition
-          if (!response.ok) {
-            throw new Error('Failed to fetch tally data');
+          // Validate required data
+          if (!tallyData.createdAt || !tallyData.condition) {
+            console.log('Invalid tally data:', tallyData);
+            setSnackbarMessage("Invalid tally data provided");
+            setSnackbarOpen(true);
+            setIsEditing(false); // Exit edit mode
+            return;
           }
-          const data = await response.json();
+
+          // Extract the ID components
+          const idParts = tallyData.id.split('_');
+          if (idParts.length < 3) { // Changed from 2 to 3 since we need all three parts
+            console.log('Invalid tally ID format:', tallyData.id);
+            setSnackbarMessage("Invalid tally ID format");
+            setSnackbarOpen(true);
+            setIsEditing(false);
+            return;
+          }
+
+          // Use the date, binId, and condition from the ID
+          const [date, binId, condition] = idParts; // Destructure all three parts
+          
+          console.log('Attempting to fetch tally with:', {
+            id: tallyData.id,
+            date,
+            binId,
+            condition,
+            originalData: tallyData
+          });
+          
+          const data = await fetchTallyData(date, binId, condition);
+
+          if (!data) {
+            throw new Error('No data received from server');
+          }
 
           // Set state with fetched data
-          setBin(data.binId);
-          setCondition(data.condition);
-          setCounter(data.counter);
-          setTallier(data.tallier);
-          setTallies(data.tallies);
-          setSelectedDate(new Date(data.createdAt * 1000)); // Convert to Date
+          setBin(data.binId || '');
+          setCondition(data.condition || 'white');
+          setCounter(data.counter || '');
+          setTallier(data.tallier || '');
+          setTallies(data.tallies || {});
+          setSelectedDate(new Date(data.createdAt * 1000));
 
           // Determine the threshold based on the condition
           const threshold = condition === "white" ? 9999 : 10000;
 
-          const fetchedManualPrices = Object.keys(data.tallies)
-            .filter(price => !isNaN(price) && parseFloat(price) > threshold) // Use the threshold based on condition
-            .map(price => parseFloat(price) / 100); // Convert back to float
+          // Add null check for data.tallies
+          const fetchedManualPrices = data.tallies ? Object.keys(data.tallies)
+            .filter(price => !isNaN(price) && parseFloat(price) > threshold)
+            .map(price => parseFloat(price) / 100) : [];
 
-          setManualPrices(fetchedManualPrices); // Set manual prices for display
+          // Set manual prices based on condition
+          if (condition === "white") {
+            setWhiteManualPrices(fetchedManualPrices);
+          } else {
+            setOrangeManualPrices(fetchedManualPrices);
+          }
         } catch (error) {
           console.error("Error fetching tally data:", error);
           setSnackbarMessage("Error fetching tally data: " + error.message);
           setSnackbarOpen(true);
+          // Set default values on error
+          setBin('');
+          setCondition('white');
+          setCounter('');
+          setTallier('');
+          setTallies({});
+          setSelectedDate(new Date());
+          setManualPrices([]);
+          setWhiteManualPrices([]);
+          setOrangeManualPrices([]);
+          // Exit edit mode on error
+          setIsEditing(false);
         }
       };
 
-      fetchTallyData();
+      fetchTallyDataForEdit();
     }
   }, [isEditing, tallyData]);
 
@@ -383,7 +455,20 @@ const Tally = () => {
 
           <Select 
             value={condition} 
-            onChange={(e) => setCondition(e.target.value)} 
+            onChange={(e) => {
+                const newCondition = e.target.value;
+                // Save current tallies before switching
+                if (condition === "white") {
+                    setWhiteTallies(tallies);
+                } else {
+                    setOrangeTallies(tallies);
+                }
+                // Switch to the new condition and load its tallies
+                setCondition(newCondition);
+                setTallies(newCondition === "white" ? whiteTallies : orangeTallies);
+                // Update manual prices based on condition
+                setManualPrices(newCondition === "white" ? whiteManualPrices : orangeManualPrices);
+            }} 
             fullWidth 
             sx={{
               backgroundColor: "rgba(118, 118, 128, 0.12)",
@@ -429,8 +514,24 @@ const Tally = () => {
           />
         </Container>
 
+        {/* Clear All button at the top of tally list */}
+        <Button 
+          onClick={handleReset}
+          variant="outlined"
+          color="error"
+          sx={{
+            borderRadius: 12,
+            marginBottom: 3,
+            display: "block",
+            mx: "auto",
+            "&:hover": { borderColor: "error.main", backgroundColor: "transparent" }
+          }}
+        >
+          Clear All
+        </Button>
+
         {((condition === "white" ? pricesNew : pricesUsed)
-            .concat(manualPrices.sort((a, b) => a - b))) // Combine preset and manual prices
+            .concat((condition === "white" ? whiteManualPrices : orangeManualPrices).sort((a, b) => a - b)))
             .map((price) => {
                 const sanitizedPrice = Math.round(price * 100); // Sanitize for key access
                 return (
@@ -610,13 +711,16 @@ const Tally = () => {
             marginBottom: 3,
             display: "block",
             mx: "auto",
-            boxShadow: "none", // Removes default shadow
-            "&:hover": { backgroundColor: "#007AFF", boxShadow: "none" } // Keep the same color on hover
+            boxShadow: "none",
+            "&:hover": { backgroundColor: "#007AFF", boxShadow: "none" }
           }}
         >
           {isEditing ? "Save" : "Submit"}
         </Button>
-        <Button onClick={handleReset}
+
+        {/* Changed Reset Count to Clear All at the bottom */}
+        <Button 
+          onClick={handleReset}
           variant="outlined"
           color="error"
           sx={{
@@ -624,10 +728,10 @@ const Tally = () => {
             marginBottom: 3,
             display: "block",
             mx: "auto",
-            "&:hover": { borderColor: "error.main", backgroundColor: "transparent" } // Keep the same color on hover
+            "&:hover": { borderColor: "error.main", backgroundColor: "transparent" }
           }}
         >
-          Reset Count
+          Clear All
         </Button>
 
         {isEditing && (

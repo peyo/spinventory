@@ -58,28 +58,25 @@ app.post('/api/users', async (req, res) => {
 });
 
 // POST endpoint to save tally data
-app.post('/api/tally/:binId/tallies/:date', async (req, res) => {
-    const { condition, counter, tallier, submittedBy, tallies, manualPrices, createdAt } = req.body; // Ensure you have the correct fields
-    const { binId, date } = req.params;
+app.post('/api/tally/:tallyKey', async (req, res) => {
+    const { condition, counter, tallier, submittedBy, tallies, createdAt, binId } = req.body;
+    const { tallyKey } = req.params;
 
     // Validate the incoming data
     if (!binId || !condition || !counter || !tallier || !submittedBy || !tallies || !createdAt) {
         return res.status(400).send("All fields are required");
     }
 
-    const tallyKey = `${date}_${condition}`; // Keep the same key format
-
     try {
-        const newTallyRef = admin.database().ref(`tallies/${tallyKey}`); // Save directly under tallies
+        const newTallyRef = admin.database().ref(`tallies/${tallyKey}`);
         await newTallyRef.set({
             binId,
             condition,
             counter,
-            createdAt, // Use createdAt from the request body
+            createdAt,
             submittedBy,
             tallier,
             tallies,
-            manualPrices: manualPrices || [], // Save manual prices
         });
 
         res.status(201).send({ message: 'Tally data saved successfully' });
@@ -230,15 +227,21 @@ app.get('/api/user', async (req, res) => {
 // GET endpoint to fetch data based on start and end dates
 app.get('/api/user/date-range', async (req, res) => {
     const { startDate, endDate } = req.query;
-    const userEmail = req.query.userEmail; // Add this parameter from frontend
+    const userEmail = req.query.userEmail;
 
     try {
-        // Check user role
-        const userRef = admin.database().ref(`users/${userEmail}`);
+        // First verify the requesting user exists in Auth
+        const userRecord = await admin.auth().getUserByEmail(userEmail);
+        if (!userRecord) {
+            return res.status(403).json({ message: 'User not found' });
+        }
+
+        // Get user role from Realtime Database using the UID
+        const userRef = admin.database().ref(`users/${userRecord.uid}`);
         const userSnapshot = await userRef.once('value');
         
         if (!userSnapshot.exists()) {
-            return res.status(403).json({ message: 'User not found' });
+            return res.status(403).json({ message: 'User not found in database' });
         }
 
         const userRole = userSnapshot.val().role;
@@ -256,11 +259,14 @@ app.get('/api/user/date-range', async (req, res) => {
             .endAt(end)
             .once('value');
         
-        const data = snapshot.val();
-        res.status(200).json(data || {});
+        // Always return an object, even if empty
+        res.status(200).json(snapshot.val() || {});
     } catch (error) {
         console.error("Error fetching data:", error);
-        res.status(500).send("Error fetching data");
+        res.status(500).json({ 
+            message: 'Error fetching data',
+            details: error.message 
+        });
     }
 });
 
@@ -446,6 +452,26 @@ app.get('/api/data', async (req, res) => {
     } catch (error) {
         console.error("Error fetching data:", error);
         res.status(500).send("Error fetching data");
+    }
+});
+
+// GET endpoint to fetch tally data
+app.get('/api/tally/:tallyKey', async (req, res) => {
+    const { tallyKey } = req.params;
+
+    try {
+        const tallyRef = admin.database().ref(`tallies/${tallyKey}`);
+        const snapshot = await tallyRef.once('value');
+        const tallyData = snapshot.val();
+
+        if (!tallyData) {
+            return res.status(404).send("Tally not found");
+        }
+
+        res.status(200).json(tallyData);
+    } catch (error) {
+        console.error("Error fetching tally data:", error);
+        res.status(500).send("Error fetching tally data");
     }
 });
 

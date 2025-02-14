@@ -7,20 +7,48 @@ import Records from "./pages/tallier/Records";
 import UserManagement from "./pages/manager/UserManagement";
 import BinCount from './pages/manager/BinCount';
 import Accounting from './pages/accountant/Accounting';
+import ProtectedRoute from './components/ProtectedRoute';
 import './styles/App.css';
 
 function Main() {
   return (
     <Router>
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/sign-up" element={<SignUp />} />
-        <Route path="/tally" element={<Tally />} />
-        <Route path="/records" element={<Records />} />
-        <Route path="/user-management" element={<UserManagement />} />
-        <Route path="/bin-count" element={<BinCount />} />
-        <Route path="/accounting" element={<Accounting />} />
+
+        {/* Tallier Routes */}
+        <Route path="/tally" element={
+          <ProtectedRoute allowedRoles={['tallier']}>
+            <Tally />
+          </ProtectedRoute>
+        } />
+        <Route path="/records" element={
+          <ProtectedRoute allowedRoles={['tallier']}>
+            <Records />
+          </ProtectedRoute>
+        } />
+
+        {/* Admin Routes */}
+        <Route path="/user-management" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <UserManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/bin-count" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <BinCount />
+          </ProtectedRoute>
+        } />
+
+        {/* Accountant Routes */}
+        <Route path="/accounting" element={
+          <ProtectedRoute allowedRoles={['accountant']}>
+            <Accounting />
+          </ProtectedRoute>
+        } />
       </Routes>
     </Router>
   );

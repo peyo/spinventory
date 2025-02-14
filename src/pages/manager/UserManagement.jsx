@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Typography, Container, IconButton, Box, Select, MenuItem, FormControl, Snackbar } from "@mui/material";
 import UserDeleteModal from "../../components/Modals/UserDeleteModal";
-import { fetchUsers, deleteUser, updateUserRole } from "../../utils/managerApi"; // Import your API functions
+import { fetchUsers, deleteUser, updateUserRole } from "./utils/managerApi"; // Import your API functions
 import ArrowBackIcon from "@mui/icons-material/ArrowBack"; // Import back icon
 import DeleteIcon from "@mui/icons-material/Delete"; // Import trash can icon
 import LogoutIcon from "@mui/icons-material/Logout"; // Import logout icon
